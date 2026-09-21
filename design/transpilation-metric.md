@@ -13,7 +13,8 @@ The general-improvement tier, expanded fixtures and uncertainty across circuit i
 are also **proposed**. The measurements in section 4 cover only the focused panel;
 they do not establish general improvement or the expanded panel's statistical power.
 Thresholds are starting points to tune. Section 4 reports output-quality values measured
-at the baseline commit; it does not establish a controlled timing baseline.
+at the baseline commit; it does not establish a controlled timing baseline. Section 6
+reports a one-seed feasibility check of its proposed equivalence oracle, not a harness.
 
 ## 1. The objective
 
@@ -43,7 +44,7 @@ breadth, effect-size, validation and memory requirements in section 5.2:
 
 | Signal | Rule | Compared against |
 | --- | --- | --- |
-| Correctness: C1–C5 plus the at-scale checks of section 6 | All pass. A failure blocks the change whatever it gains | — |
+| Correctness: C1–C5 plus the at-scale checks of section 6 | All pass. A failure blocks the change whatever it gains. An "unverified" equivalence result is not a pass; section 6 states what it permits | — |
 | `D2` | Primary suite score below 1 by more than seed noise: `ln(score) < -2 * SE` (section 4). Apply section 5's guards and, for general qualification, its stronger improvement tests | Current accepted best for improvement; frozen campaign baseline for guards and cumulative general-tier improvement |
 | `N2` | Suite score not above 1 by more than seed noise: `ln(score) <= 2 * SE`. No single case above +5% | Frozen campaign baseline |
 | Compile time | Suite ratio at most 1 plus the measured timing noise floor. No single case above +10% | Frozen campaign baseline |
@@ -97,6 +98,7 @@ denominator to improve a score.
 - `SabreLayout` and `SabreSwap` keep the trial with the fewest swaps, ties broken by
   trial index: `min_by_key(|(index, result)| (result.swap_count(), *index))` in
   [`layout.rs`](../crates/transpiler/src/passes/sabre/layout.rs) (lines 203 and 309) and
+  the same key on `result.order.swap_count()` in
   [`route.rs`](../crates/transpiler/src/passes/sabre/route.rs) (line 1053). Depth is never compared.
 - The swap-scoring heuristic has `basic`, `lookahead`, and `decay` components and no depth
   term ([`heuristic.rs`](../crates/transpiler/src/passes/sabre/heuristic.rs), line 189).
@@ -110,10 +112,10 @@ denominator to improve a score.
   with 5 trials at levels 0–1 and 20 at levels 2–3
   ([`builtin_plugins.py`](../qiskit/transpiler/preset_passmanagers/builtin_plugins.py), from line 387).
   `SabreLayout` can perform the routing instead; its default level-2 configuration
-  uses 20 layout trials, 20 swap trials, and two layout iterations (from line 780).
+  uses 20 layout trials, 20 swap trials, and two layout iterations (from line 781).
 - The optimization stage does inspect **total** depth: levels 1–2 use depth/size fixed
   points, and level 3 uses a depth/size minimum-point check (`builtin_plugins.py`,
-  from line 480). Thus depth is not absent from the pipeline, but these checks do not
+  from line 479). Thus depth is not absent from the pipeline, but these checks do not
   select SABRE trials by final `D2`.
 
 Section 4 shows the consequence: compilations with nearly the same gate count differ
@@ -157,9 +159,10 @@ harvests this noise.
 Measured at `0131cbbcc` with B3's setup (level-2 preset, `GenericBackendV2` on
 `CouplingMap.from_heavy_hex(9)`, backend seed `12345678942`), `cz` target, varying only
 `seed_transpiler` over 0–49. These are output-quality values, deterministic for a given
-checkout, configuration, and seed. The three numeric-circuit rows were reproduced in
-the plan's serial environment during review. Re-measure on the benchmark runner and
-retain raw per-seed observations before relying on the derived thresholds.
+checkout, configuration, and seed. All four rows, and the seeds 0–9 comparisons quoted
+in section 2 and below, were reproduced in the plan's serial environment during review.
+Re-measure on the benchmark runner and retain raw per-seed observations before relying
+on the derived thresholds.
 
 | Workload | `D2` min / median / max | `N2` min / median / max | sd of `ln D2` | sd of `ln N2` | Correlation of the log metrics | Linear-fit residual sd of `ln D2` |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -183,19 +186,21 @@ Reading it:
   standard deviation of about 6–12% (`sqrt(2)` times the fourth column).
 - **Ten seeds can miss small gains.** Assuming independent cases and revisions with
   unchanged variance, `SE = sqrt(sum_c 2 * sd_c**2 / |S|) / number_of_cases` gives about
-  1.8% for ten seeds and 0.6% for 100 seeds. These are planning estimates, not measured
-  acceptance thresholds for the expanded panel. Use seeds 0–99 for the quality score,
-  superseding the plan's ten-seed diagnostic panel, and compute uncertainty from the
-  candidate and reference observations using the rule below. Measure the actual cost
-  on the selected runner.
+  1.8% for ten seeds and 0.6% for 100 seeds. Under the same assumptions, the `2 * SE`
+  rule with 100 seeds passes a true 1.1% reduction only half the time and needs about
+  1.6% to pass four times in five; the confirmation block is then a second such test.
+  These are planning estimates, not measured acceptance thresholds for the expanded
+  panel. Use seeds 0–99 for the quality score, superseding the plan's ten-seed
+  diagnostic panel, and compute uncertainty from the candidate and reference
+  observations using the rule below. Measure the actual cost on the selected runner.
 - **The `cx`, `cz`, and `ecr` targets are not independent cases.** Over seeds 0–9, `D2` and
-  `N2` were identical on `cz` and `ecr` for QFT and Heisenberg. `cx` was identical for
-  Heisenberg and within 2% for QFT, tracking seed by seed. These observations do not
-  establish independence or native-basis invariance: basis-dependent preprocessing can
-  change the interaction DAG reaching routing. The focused tier scores one fixed target
-  (`cz`) and uses the others as guards. The general tier includes balanced basis strata,
-  keeping their results paired within each input instance; they are coverage, not extra
-  independent circuit samples.
+  `N2` were identical on `cz` and `ecr` for all three scored circuits. `cx` was identical
+  for Heisenberg, within 1% for QAOA and within 2% for QFT, tracking seed by seed. These
+  observations do not establish independence or native-basis invariance:
+  basis-dependent preprocessing can change the interaction DAG reaching routing. The
+  focused tier scores one fixed target (`cz`) and uses the others as guards. The general
+  tier includes balanced basis strata, keeping their results paired within each input
+  instance; they are coverage, not extra independent circuit samples.
 - **This SU2 instance is a focused-panel canary.** No SWAPs are needed (`N2` equals the input's
   300 CX) and the emitted circular CX ladder is serial (`D2 = N2`). The observed panel
   has no seed variation; any change needs an explanation. This is not a proof that no
@@ -214,15 +219,25 @@ SE        = sample_sd(delta_s) / sqrt(number_of_seeds)
 
 This retains covariance between workloads and between revisions at a shared seed;
 it does not require the seed to produce the same search trajectory. For a per-case
-guard, omit the mean over cases. If using independent seed panels instead, use
-`SE = sqrt(var(x_candidate)/n_candidate + var(x_reference)/n_reference)`. Do not
-substitute baseline-only variances when a candidate changes the distribution.
+guard, use that case alone: `x_r(s) = ln(m_r(c, s))`. If using independent seed panels
+instead, use `SE = sqrt(var(x_candidate)/n_candidate + var(x_reference)/n_reference)`.
+Do not substitute baseline-only variances when a candidate changes the distribution.
 
 The `2 * SE` rules are approximate screening tolerances, not proof of non-regression
 or a campaign-wide confidence guarantee. Repeated candidate selection, heavy tails,
 and reuse of the tuning panel affect inference. Fresh confirmation seeds reduce
 overfitting to that panel; repeated confirmation attempts still require a prespecified
 multiple-testing or sequential-testing policy if a formal false-acceptance rate is claimed.
+
+Multiplicity also works against a good candidate. A one-sided `2 * SE` guard trips on
+about 2% of comparisons that have no true change, so `k` independent noisy guards reject
+a neutral candidate with probability about `1 - 0.977**k`: roughly 20% at `k = 10` and
+50% at `k = 30`. Identical basis variants count once and deterministic cases add none,
+but the confirmation block applies every guard a second time. Count the noisy guards
+in the frozen manifest and report this rate. If it is unacceptable, predeclare the
+remedy before tuning — a wider per-guard multiplier, or one rerun of a breached guard
+on a fresh seed block — and never rerun a failed guard until it passes.
+
 This `SE` conditions on the selected circuit inputs. Repeating one circuit on many
 seeds does not estimate generalization across inputs. Section 5.2 adds an uncertainty
 estimate across instance groups and requires fresh circuits as well as fresh seeds.
@@ -325,10 +340,14 @@ running the required workloads alone is not sufficient.
 **Weighting.** Give each of the eight families weight `1/8`. Within a family, divide
 weight equally among supported size bands, then topology classes, native bases,
 optimization levels, independent input groups and finally their declared variants,
-in that order. Divide only among children present in the frozen manifest. Persist each
-resulting `w_c`; sum them to one. Compute tuning and validation scores separately with
-the same family and stratum policy. Unequal instance counts must not change family
-weights, and adding many QAOA graphs must not outweigh the other seven families.
+in that order. Divide only among children present in the frozen manifest. Unless that
+manifest declares it scored, the all-to-all control is guard-only: exclude its cases
+from every score and summary except its own topology summary, which uses the same
+division rule; acceptance rule 3's summary guard and per-case caps still apply to it.
+Persist each resulting `w_c`; sum them to one. Compute tuning and validation scores
+separately with the same family and stratum policy. Unequal instance counts must not
+change family weights, and adding many QAOA graphs must not outweigh the other seven
+families.
 Zero-baseline guards are outside the logarithmic score: freeze their roles and remaining
 weights before tuning. If a required family has no positive scored cases, qualification
 is incomplete until the panel is redesigned; never silently redistribute its weight.
@@ -398,7 +417,8 @@ guard explicitly specifies only the frozen baseline:
    decision. All cost comparisons use the frozen baseline. Gains in `D2` cannot
    compensate for failing a cost guard.
 5. **Correctness and completeness:** C1–C5 where applicable, section 6's checks on
-   scored outputs, and affected repository tests pass; required coverage and measurements
+   scored outputs (with "unverified" results handled as that section states), and
+   affected repository tests pass; required coverage and measurements
    are complete, with zero unexpected crashes/timeouts. An unsupported configuration
    is an exclusion only when declared before tuning, not after a candidate fails.
 
@@ -414,7 +434,7 @@ pass. Use separate qualified claims for compiler-speed, scheduling or other obje
 
 1. **Freeze** the commit, fixtures, targets, and search budget as in the plan's section 5,
    items 1–3. Declare the qualification tier; for general qualification also freeze
-   the section 1.1 manifest, input-group splits, weights, effect threshold, reserve
+   the plan's section 1.1 manifest, input-group splits, weights, effect threshold, reserve
    validation panels and uncertainty procedure. Trial counts are part of the
    configuration. Raising them converts compile time into quality, so report that as
    a configuration change, not an algorithmic gain.
@@ -506,6 +526,47 @@ Scope and limits of the Clifford check:
   verify the optimized output. Keep any uncovered stage explicitly unverified until
   an appropriate oracle or targeted regression covers the changed behavior.
 
+**Feasibility check at the baseline (one seed; re-measure before relying on it).** At
+`0131cbbcc`, every `rx`/`ry`/`rz` angle of the three scored circuits was replaced by a
+random odd multiple of π/2 (one assignment) and compiled at level 2 with
+`seed_transpiler=0`, `approximation_degree=1.0` and `qubits_initially_zero=False` on all
+three targets:
+
+- **The recipe holds at full width.** Wherever `Clifford(output)` was accepted, the
+  193-qubit tableaux were equal; the inverse permutation convention failed on the
+  full-width case where it was tried. Building both tableaux took at most a few
+  seconds, comparable to the compilation.
+- **The complete default pipeline was verified for one of the nine circuit/target
+  pairs** (Heisenberg on `cz`). The other eight were "unverified": two-qubit
+  resynthesis emitted `rz` angles that are not multiples of π/2 — 7,045 of QFT's 19,893
+  on `cz` — so a looser tolerance would not help. `TwoQubitPeepholeOptimization` alone
+  is enough to cause this: the same eight stayed unverified with the plugin below.
+  Consolidating the output into two-qubit blocks first did not help either:
+  single-qubit gates merged across block boundaries leave blocks that are not
+  individually Clifford.
+- **A prefix was verified for all nine.** With `unitary_synthesis_method="clifford"` and
+  the optimization stage removed (`pm.optimization = None`), the check covered init,
+  layout, routing and translation. Without that plugin the prefix passed for four of
+  the nine (all three on `cz`, Heisenberg on `cx`): init-stage `ConsolidateBlocks` hands
+  blocks to the default synthesis. The plugin is not the scored configuration, and the
+  optimization stage stays uncovered.
+- **The variants were not the scored routing problems.** On `cz`, `(D2, N2)` was
+  (437, 1,720) against the scored circuit's (498, 1,947) for Heisenberg, (1,379, 8,040)
+  against (1,571, 8,655) for QAOA, and (2,298, 15,985) against (1,983, 9,835) for QFT.
+  After the init stage the QFT variant still interacted on all 4,950 qubit pairs, while
+  the scored circuit, whose fixture has thousands of zero or negligible `rz` angles,
+  kept 1,750. The other two variants kept their scored circuits' pairs.
+
+**What an "unverified" result permits.** Item 1 must pass on every scored output, and an
+equivalence mismatch blocks the change. "Unverified" blocks nothing by itself, but
+automatic acceptance needs, for every scored circuit and target, a verified check whose
+stage boundary contains every stage the candidate changes. At the baseline that is the
+prefix configuration above, which suits layout and routing changes. A candidate that
+changes the optimization stage or two-qubit synthesis has no at-scale oracle here: it
+needs explicit review on top of C1/C4 and targeted regressions. Record each case's
+status and stage boundary, and explain any case that was verified at the frozen
+baseline and is not under the candidate.
+
 ## 7. What exists and what must be built
 
 | Need | State |
@@ -514,7 +575,7 @@ Scope and limits of the Clifford check:
 | Compile time per case | **Existing**: ASV `time_*` methods for B1–B3 and the QAOA extension; **proposed** full general-panel end-to-end/reuse timings and multi-seed companions for search changes |
 | `N2` per case | **Proposed**: `output.count_ops()` summed over the target's native two-qubit names, from the same run as `D2` |
 | Multi-seed scorer: per-case ratios, `SE`, frozen-baseline guards, seed blocks | **Proposed**: a script outside ASV that varies `seed_transpiler` and rebuilds the preset per seed |
-| Legality and mapping on scored outputs; Clifford variants | **Proposed** (section 6) |
+| Legality and mapping on scored outputs; Clifford variants | **Proposed** (section 6). Its one-seed feasibility check verified the full default pipeline on one of nine focused circuit/target pairs and a synthesis-plugin prefix on all nine |
 | Confirmation blocks and held-out circuits | **Proposed** (section 5) |
 | Reproducible QV inputs; QUEKO depth-model match | **Proposed**: freeze QV before comparisons; match QUEKO's model before optimality claims |
 | G1–G8 input/target/level matrix and manifest | **Proposed**: reuse existing anchors, add missing sizes and independent instances, hash inputs/targets and validate coverage before tuning |
