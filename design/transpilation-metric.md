@@ -269,14 +269,58 @@ repeatedly inspected held-out circuits eventually become tuning cases and need r
 
 ### 5.2. General-improvement qualification
 
-Use all G1–G8 families and the input/target/level matrix in
+**Required workloads: all eight families below.** Each family must contribute scored
+cases to both the tuning panel and an independent validation panel. They are required
+coverage for this policy, not optional extensions or only regression guards. The three
+circuits in section 5.1 remain useful for iteration, but cannot qualify a general result.
+
+| ID | Required workload family | Existing inputs to reuse as tuning anchors | Why it is included |
+| --- | --- | --- | --- |
+| G1 | Quantum Fourier transform (QFT) | `qft_N100` in `utility_scale.py`; `time_qft_16` in `transpiler_qualitative.py` | Structured, nonlocal interactions at different widths |
+| G2 | Hamiltonian simulation | `square_heisenberg_N100` in `utility_scale.py` | Lattice interactions and repeated evolution layers |
+| G3 | QAOA | `qaoa_barabasi_albert_N100_3reps`, used by `time_qaoa` in `utility_scale.py` | Graph-dependent interactions and repeated optimization layers |
+| G4 | Quantum volume (QV) | 14×14 and 50×20 cases in `transpiler_levels.py`; 50×50 case in `utility_scale.py` | Random dense interactions and matrix-gate synthesis |
+| G5 | Reversible logic | `hwb12` in `utility_scale.py`; `4gt10`, `4mod5`, `mod8` and `cnt3` fixtures in `transpiler_qualitative.py` | Boolean/arithmetic structures and their synthesis and simplification paths |
+| G6 | Bernstein–Vazirani (BV) and BV-like circuits | `time_bv_100` and `time_bvlike` inputs in `utility_scale.py` | Algorithm-specific interaction patterns and simplification opportunities |
+| G7 | Variational ansatz circuits | 89- and 100-qubit `efficient_su2` inputs in `utility_scale.py` | Repeated entanglement patterns and symbolic versus bound parameters |
+| G8 | Routing challenge circuits | BNTF, BSS and BIGD fixtures in `queko.py` | Additional routing structures with fixed circuit/target pairs |
+
+Sources: [`utility_scale.py`](../test/benchmarks/utility_scale.py),
+[`transpiler_levels.py`](../test/benchmarks/transpiler_levels.py),
+[`transpiler_qualitative.py`](../test/benchmarks/transpiler_qualitative.py), and
+[`queko.py`](../test/benchmarks/queko.py). The named inputs already exist; the expanded
+panel below is **proposed and requires additional fixtures and measurement code**.
+The existing 100-qubit SU2 canary retains its guard role; other G7 instances supply
+scored coverage. B2, qualitative and QUEKO total-depth trackers need `D2` companions.
+
+**Required coverage within those families:**
+
+| Dimension | Minimum required by this policy |
+| --- | --- |
+| Circuit size | Small: 4–16, medium: 17–64, large: 65–100 logical qubits, wherever the family supports the band; all three bands represented in each panel |
+| Distinct inputs | At least three independent tuning input groups and three independent validation groups per supported family/size cell; new transpiler seeds do not count as new inputs |
+| Connectivity | Heavy-hex, line and 2D grid, plus an all-to-all control; each family on at least two sparse topology classes unless a fixture contract fixes its target |
+| Native gates and target details | `cx`, `cz` and `ecr` variants, a supported asymmetric directed target, and both fully occupied targets and targets with spare qubits |
+| Optimization levels | 0, 1, 2 and 3 for every supported input/target pair |
+| Transpiler seeds | 0–99 for tuning; a fresh 100-seed block for qualification, on both tuning and independent validation inputs |
+
+Add widths and structural variants of the existing anchors: lattice sizes and evolution
+depths for G2; graph instances, graph structures and repetitions for G3; frozen random
+matrices and depths for G4; different Boolean/arithmetic circuits for G5; widths and
+interaction patterns for G6; entanglement patterns, repetitions and parameter variants
+for G7; independent circuit/target pairs for G8. Freeze QFT conventions for G1. Reserve
+previously unused instances from **every** family for validation; the listed tuning
+anchors cannot also serve as independent validation inputs.
+
+The full fixture rules are in
 [the plan, section 1.1](transpilation-benchmarks.md#11-general-improvement-panel--proposed).
-The campaign manifest is the authoritative list of supported cases, splits and weights.
-The original three circuits are tuning anchors, not the entire scored population.
-QV, reversible logic, BV, ansatz and QUEKO cases now contribute to the broad score;
-reserve separate, previously unused instances of each family for validation. Existing
-fixtures alone do not fill this matrix. Record coverage before evaluating candidates
-and do not claim this tier until its proposed fixtures and harness exist.
+Freeze exact case IDs, input/target hashes, supported cells, exclusions, splits and
+weights in the campaign manifest before tuning. Both panels must contain all eight
+families, all size bands and all required topology classes. Record unsupported cells
+with reasons in advance; missing required coverage blocks qualification. Do not claim
+this tier until the expanded fixtures and harness exist. The acceptance rules below
+require improvement in at least four families and in the aggregate on both panels;
+running the required workloads alone is not sufficient.
 
 **Weighting.** Give each of the eight families weight `1/8`. Within a family, divide
 weight equally among supported size bands, then topology classes, native bases,
