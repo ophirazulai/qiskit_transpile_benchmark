@@ -28,7 +28,7 @@ be frozen before the first candidate is evaluated (section 12 lists them).
 [6 Seeds](#6-how-seeds-are-used) ·
 [7 Optimization levels](#7-how-optimization-levels-are-used) ·
 [8 Decision engine](#8-decision-engine) ·
-[9 Lifecycle](#9-run-lifecycle-campaign-state-and-caching) ·
+[9 Lifecycle](#9-run-lifecycle-and-caching) ·
 [10 Work breakdown](#10-work-breakdown) ·
 [11 Harness validation](#11-validating-the-harness-itself) ·
 [12 Risks and defaults](#12-risks-open-questions-and-defaults-to-freeze) ·
@@ -42,12 +42,12 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    both, verifies the outputs, and prints one of five verdicts: `PASS`, `NO_IMPROVEMENT`,
    `CONSTRAINT_VIOLATION`, `INCONCLUSIVE` or `ERROR`. Of those, only `PASS` exits with
    code 0.
-2. **One objective, hard constraints, two references.** The objective is lower **native
+2. **One objective, hard constraints, one reference.** The objective is lower **native
    two-qubit depth (`D2`)**. Native two-qubit gate count (`N2`), compilation time, peak
    memory (general profiles) and correctness are constraints. It is never a weighted sum: a
-   depth gain cannot pay for a wrong circuit or a failed cost guard. Improvement is judged
-   against the campaign's *current best*; every guard is judged against the *frozen
-   campaign baseline*, so accepted changes cannot each spend the noise allowance again.
+   depth gain cannot pay for a wrong circuit or a failed cost guard. Improvement and every
+   guard are judged against the same baseline, the one named on the command line; the
+   harness keeps no accepted-change history of its own.
 3. **The revision under test never grades itself.** A worker inside each Qiskit
    environment only compiles and exports a Qiskit-independent operation list. Harness-owned
    code computes `D2`, `N2` and target legality from that list, and semantic oracles run in
@@ -63,8 +63,8 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    gates, 180 pairs) and a three-layer QAOA on a Barabási–Albert graph (2,264 gates, 196
    pairs) — on a 193-qubit heavy-hex target with a `cz` basis at optimization level 2.
    The same circuits on `cx`/`ecr` targets, held-out circuits, two canaries and a 19-case
-   timing panel are guards. The *general-lite* profile is the general profile campaigns
-   run: 38 scored input groups (133 cases) and 14 guard inputs drawn entirely from
+   timing panel are guards. The *general-lite* profile is the general profile that runs
+   in practice: 38 scored input groups (133 cases) and 14 guard inputs drawn entirely from
    Qiskit's in-tree benchmark suite — all eight workload families at levels 0–3 on
    fourteen frozen targets (heavy-hex and grid classes, one of them directed; `cx`/`cz`
    scored, `ecr` guarded; an all-to-all control) in a tuning split and a
@@ -72,13 +72,22 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    block. The full *general* profile — eight families, three size bands, four topology
    classes, three bases and all four levels with at least three independent inputs per
    cell and split — remains the specification of the complete claim and is deferred
-   until a lite campaign needs it.
-6. **Seeds.** By default every quality case runs on a block of 100 transpiler seeds,
-   paired across revisions: block 0–99 for tuning, then a fresh block per decision
-   (100–199, 200–299, …; at most one more for guard reruns), retired after use whatever
-   the verdict. Circuits and targets are frozen as hashed data, never regenerated from a
-   seed. Inside Qiskit the transpiler seed drives only the SABRE layout and routing
-   search; section 6 traces it to the trial level.
+   until a lite comparison's claim needs it.
+6. **Seeds.** A seed is the non-negative integer the worker passes as `seed_transpiler`
+   when it builds the preset pass manager for one compile; inside Qiskit it drives only
+   the SABRE layout and routing search (section 6.2 traces it to the trial level), and
+   it never touches the inputs, which are frozen as hashed data and never regenerated
+   from a seed. Seeds are the replication dimension: by default every quality case is
+   compiled once per seed of a 100-seed block by every revision in the comparison, so
+   one case yields 100 `(D2, N2)` observations per revision, and the score and its
+   uncertainty come from the differences between revisions at the same seed. The
+   coordinator, never the user, picks the block: `screen` and the tuning step of
+   `compare` always use `TB0` (seeds 0–99), reused freely because it is tuning data;
+   the confirmation step of `compare` takes the lowest block no candidate has seen
+   (`CB1` = 100–199, `CB2` = 200–299, …) plus at most one more for the shared guard
+   rerun, and a ledger retires every block a decision exposed whatever the verdict, so
+   no candidate is ever confirmed on seeds it was tuned on. The opening of section 6
+   walks one seed through a run.
 7. **Optimization levels.** The focused profile scores level 2 only, so a focused `PASS`
    is a level-2 claim. Its timing panel spans levels 0–3. The general profiles give the
    four levels equal weight inside every family and guard each level's summary. Section 7 tabulates what each level does at the baseline and why
@@ -171,25 +180,28 @@ exist yet. The general-lite profile (3.7.1) sits between them: every family, lev
 topology class the in-tree suite can supply, at about ninety CPU-minutes per revision and
 block, with the gaps in its coverage declared case by case. A `PASS` names its profile.
 
-**Why two references.** Every regression guard compares against the *frozen campaign
-baseline*, which never moves. If guards compared against the previously accepted change,
-each acceptance would spend the noise allowance again: ten accepted changes at "+1%,
-within noise" compound into a 10% regression that no single comparison flagged. Only the
-improvement test compares against the *current best*.
+**One reference.** Every test — the improvement test, every quality guard and every cost
+guard — compares the evolved folder with the baseline folder given on the command line.
+The harness never records an accepted change as a new reference, so the improvement test
+asks whether the evolved tree beats that baseline, not whether it beats an earlier
+candidate; ranking candidates against each other is done by reading their reports side by
+side. One responsibility stays with the user: when evaluating a series of changes, keep
+naming the same original baseline rather than the last accepted evolved tree. If each
+comparison used the previous accepted change as its baseline, every acceptance would spend
+the noise allowance again: ten accepted changes at "+1%, within noise" compound into a 10%
+regression that no single comparison flagged.
 
 **Vocabulary.**
 
 | Term | Meaning |
 | --- | --- |
 | Revision | One Qiskit source tree, snapshotted and built into its own environment |
-| Baseline / evolved | The two folders given on the command line: the reference and the candidate |
-| Frozen campaign baseline | The baseline recorded when a campaign is created; the reference of every guard |
-| Current best | The most recently accepted revision in the campaign (the baseline itself in a new campaign); the reference of the improvement test |
+| Baseline / evolved | The two folders given on the command line: the reference of every test, and the candidate |
 | Case | One circuit × one target × one compile configuration, including the optimization level |
 | Input group | All cases derived from the same underlying circuit instance (its target, basis, level and parameter variants). The unit of independence for splits and for the bootstrap |
 | Panel | A set of cases evaluated together: tuning, held-out, canary, timing, memory, validation |
 | Profile | A versioned bundle of manifest (cases, weights, roles) and policy (thresholds): `focused-v1`, `general-lite-v1`, `general-v1` |
-| Campaign | A line of work against one frozen baseline and one profile. Owns the current best, its seed-block use and the decision history |
+| Transpiler seed | The non-negative integer passed as `seed_transpiler` for one compile of one case by one revision: one seed, one compile. The replication dimension of every quality panel (section 6); never a fixture-generation seed, since inputs are frozen files |
 | Seed block | 100 consecutive transpiler seeds with one declared purpose: `TB0`, `CB1…`, `KB1…` (section 6.3) |
 | Objective / guard / canary | The quantity that must improve / a quantity that must not regress / a case with a known constant outcome whose change demands an explanation |
 | Native two-qubit gate | An executable two-qubit instruction of the target: `cx`, `cz` or `ecr` here |
@@ -204,12 +216,12 @@ improvement test compares against the *current best*.
 
 | Component | Responsibility | Imports Qiskit? |
 | --- | --- | --- |
-| Campaign configuration | Versioned profiles: concrete case IDs, weights, roles, exclusions, limits, seed blocks, splits, thresholds | No |
+| Profile configuration | Versioned profiles: concrete case IDs, weights, roles, exclusions, limits, seed blocks, splits, thresholds | No |
 | Fixtures and targets | Repository-owned circuit data and frozen synthetic target descriptions, each with a SHA-256 | No |
 | Environment builder | Snapshot each folder, build Qiskit including its native extension, install locked dependencies, verify provenance | No |
 | Revision worker | Inside **one** revision's environment: rebuild inputs from canonical data, compile, run the API-behavior checks that need the live library, export canonical outputs | Yes — the revision under test |
 | Verifier | Inside a repository-pinned environment: stream canonical outputs, compute `D2`/`N2`, check legality and layouts, replay routing, run semantic oracles | Yes — one pinned released Qiskit, for `quantum_info` oracles only; metric, legality and replay code is pure Python |
-| Coordinator | Preflight, job scheduling, seed-block ledger, timeouts, caching, campaign state, exclusive-machine control for cost runs | No |
+| Coordinator | Preflight, job scheduling, seed-block ledger, timeouts, caching, run state, exclusive-machine control for cost runs | No |
 | Evaluator | Ratios, scores, uncertainty, coverage, every guard, the decision — from saved observations only | No |
 | Reporter | Terminal verdict, `report.md`, `decision.json`, reproduction bundle | No |
 
@@ -229,8 +241,7 @@ flowchart LR
     O --> E["evaluator"] --> R["reporter"]
 ```
 
-(A full run also builds a second baseline environment for the timing control arm of 4.8,
-and a continuing campaign adds one for the current best.)
+(A full run also builds a second baseline environment for the timing control arm of 4.8.)
 
 Three rules follow from the trust boundary:
 
@@ -249,12 +260,12 @@ Three rules follow from the trust boundary:
 qiskit-transpile-bench/
   pyproject.toml              # core package `qtb`: no Qiskit dependency
   src/qtb/
-    cli.py                    # compare, screen, smoke, calibrate, freeze, evaluate, report, review, repro
+    cli.py                    # compare, screen, smoke, calibrate, evaluate, report, review, repro
     config/                   # JSON Schemas and loaders: manifest, policy, protocol, records
     canonical/                # canonical circuit/layout/target formats, hashing (pure Python)
     metrics/                  # D2/N2 extraction, target legality, routing replay (pure Python)
     envbuild/                 # snapshot, content hash, build, provenance
-    coordinator/              # preflight, scheduler, seed-block ledger, cache, campaign state
+    coordinator/              # preflight, scheduler, seed-block ledger, cache, run state
     evaluator/                # ratios, scores, SE, bootstrap, guards, decision
     reporter/                 # decision.json, report.md, terminal verdict
   worker/qtb_worker/          # installed into each revision environment
@@ -536,8 +547,7 @@ all three circuits, and `cx` was identical for Heisenberg, within 1% for QAOA an
 2% for QFT. When counting independent noisy guards, identical variants count once.
 
 **Held-out circuits** are evaluated only at acceptance (never in screening), as per-case
-guards against the frozen baseline — so the current best need not run them. They need not
-improve. They run at level 2; circuits without a fixture-fixed target run on the primary
+guards against the baseline. They need not improve. They run at level 2; circuits without a fixture-fixed target run on the primary
 `cz` target (a budget decision, listed in section 12).
 
 | Case | What it is | Baseline at level 2 | Seed-sensitive? |
@@ -624,7 +634,7 @@ Two companions sit beside the panel:
 Two general profiles share the acceptance rules of 8.3 and the weight, summary and guard
 machinery of section 4. **`general-lite-v1`** (3.7.1) is built entirely from the circuits,
 targets and configurations that already exist in Qiskit's in-tree benchmark suite,
-`test/benchmarks/` at the baseline commit; it is the general profile that campaigns run.
+`test/benchmarks/` at the baseline commit; it is the general profile that runs in practice.
 **`general-v1`** (3.7.2) is the fully populated grid — eight families × three size bands ×
 four topology classes × three bases × four levels, at least three independent input
 groups per family/size cell per split — which needs about 216 curated input groups and
@@ -817,7 +827,7 @@ are persisted, each split's sum to one, and the harness test suite reproduces th
 **Seeds and splits.** Every scored case uses the whole 100-seed block (6.3); the smaller
 counts belong to the guard roles named in the tables. The tuning split is screened
 against freely on `TB0`. The validation split is compiled only at confirmation, on the
-fresh block, for the candidate and both references. Validation inputs are **not** retired
+fresh block, for the candidate and the baseline. Validation inputs are **not** retired
 after a decision — the suite has no reserves to replace them — so the exposure ledger
 (6.3) counts every confirmation that saw them and the report carries the staleness
 warning from the fifth exposure on. That is the lite profile's limit: it detects
@@ -992,14 +1002,14 @@ used.
 
 Quality observations are deterministic for a fixed build, configuration and seed, so they
 may run concurrently in separate serially configured workers — never alongside a cost
-measurement. Calibration records are stored in the results root and reused by any campaign
-with the same baseline build, manifest, policy and machine, so the default new-campaign
-behavior does not repeat them.
+measurement. Calibration records are stored in the results root and reused by any run
+with the same baseline build, manifest, policy and machine, so a new run does not repeat
+them.
 
 The fully populated general grid will not run in practice, which is why `general-lite-v1`
 exists (3.7.1): its quality panel is about a hundredth of the grid's and its cost panels
 about a fiftieth, and every claim names the profile it was earned under. The general
-rule stands: profile baseline feasibility before freezing a campaign — the lite probe of
+rule stands: profile baseline feasibility before freezing the profile — the lite probe of
 3.7.1 is the worked example — declare a narrower scope (or a smaller per-case seed count,
 as for `hwb12` and the level-3 `su2_circular_n89`) **before** tuning, and never remove an
 expensive or unfavorable case from a finished comparison.
@@ -1059,8 +1069,7 @@ case_ratio(c) = gmean_{s in S} m_evolved(c, s)  /  gmean_{s in S} m_reference(c,
 score         = exp( sum_c  w_c * ln(case_ratio(c)) )
 ```
 
-`reference` is the revision the rule names: the current best for the improvement test,
-the frozen baseline for every guard. With equal seed counts the ratio of geometric means
+`reference` is always the baseline, for the improvement test and every guard alike. With equal seed counts the ratio of geometric means
 equals the geometric mean of per-seed ratios under any pairing; pairing by seed ID changes
 only the uncertainty, never the point estimate. A score of 0.98 is a 2% reduction in this
 weighted geometric summary — not a 2% reduction on every input. Logarithms are used
@@ -1113,12 +1122,11 @@ alone (−0.4%) would not have. The harness test suite must reproduce these digi
 Under a normal approximation a one-sided two-standard-error rule errs about 2.3% of the
 time per test (with 100 seeds the Student-t correction is negligible). These are empirical
 screens. They are not a proof of non-regression, and repeated candidate selection means no
-campaign-wide false-acceptance rate is claimed.
+false-acceptance rate across comparisons is claimed.
 
 ### 4.5. Deterministic cases, zeros and missing values
 
-- **Deterministic cases.** Role `deterministic` is frozen from baseline data: the frozen
-  baseline returns one constant `(D2, N2)` on every seed of the tuning block and of two
+- **Deterministic cases.** Role `deterministic` is frozen from baseline data: the baseline returns one constant `(D2, N2)` on every seed of the tuning block and of two
   calibration blocks — seed-blind cases such as the default-method QUEKO guards. Such a
   case is compared **exactly, seed by seed, on the integer metric values**: any increase
   on any seed fails, with no noise allowance. That is deliberate: a deterministic output
@@ -1199,7 +1207,7 @@ Cost uses its own estimators; the quality seed estimator is never applied to cos
 
 ```text
 t(c, r)       = median over rounds k  of  median over timed calls j  of  elapsed(c, r, k, j)
-ln_ratio_t(c) = ln t(c, evolved) - ln t(c, frozen baseline)
+ln_ratio_t(c) = ln t(c, evolved) - ln t(c, baseline)
 ln_panel      = sum_c u_c * ln_ratio_t(c)       # u_c = 1/|panel| (focused); quality weights (general)
 t_ms(c, r)    = mean over companion seeds s  of  median over rounds k  of  elapsed(c, r, s, k)
 rss(c, r)     = median over fresh processes of peak resident set size
@@ -1210,7 +1218,7 @@ guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
   timed calls until at least 3 calls and 1 s have accumulated. Rounds interleave the arms
   in a balanced, randomized order, one measurement at a time on the controlled runner; the
   coordinator refuses to start a cost job while quality workers run.
-- **In-run control arm.** A second, independent build of the frozen baseline is measured as
+- **In-run control arm.** A second, independent build of the baseline is measured as
   a third interleaved arm. If baseline-versus-control itself breaches a cost guard, the
   machine was noisier than its calibration and the cost result is `unresolved` instead of
   being blamed on the candidate.
@@ -1219,7 +1227,7 @@ guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
 - **Noise calibration (A/A).** Before any candidate is selected, build the baseline
   snapshot **twice** and collect 30 timing rounds and 10 memory processes per case and
   build. Draw 1,000 resampled A/A comparisons (10 rounds per side, without replacement).
-  `noise_panel` is the 95th percentile of `|ln_panel|`, floored at `ln(1.01)`; the campaign
+  `noise_panel` is the 95th percentile of `|ln_panel|`, floored at `ln(1.01)`; `calibrate`
   refuses to freeze above `ln(1.05)`. `floor_c` is the 95th percentile of the absolute
   per-case difference; the memory panel gets `noise_mem` and its floors the same way. The
   resamples reuse one session's rounds and see build-to-build variation only once, which
@@ -1235,7 +1243,7 @@ guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
   the largest cases — in the lite profile the eight heaviest tuning inputs plus `hwb12`
   at level 2 — 5 fresh processes per case, medians, the same form of guard with equal
   family weights (selected case weights renormalized inside each family). All cost
-  comparisons use the frozen baseline. Setup RSS is recorded so the harness's own
+  comparisons use the baseline. Setup RSS is recorded so the harness's own
   footprint is visible.
 - **Noisy breach.** One predeclared re-measurement with doubled rounds. Breached again →
   established → `CONSTRAINT_VIOLATION`. Passing → recorded as `passed_on_rerun`. If it
@@ -1259,7 +1267,7 @@ calibration below measures the real, correlated figure.
 
 1. **Count** the noisy guards in the frozen manifest and print the count in every report.
 2. **Measure** the quality guard set's false-rejection rate on baseline-only data. Run the
-   frozen baseline on six calibration blocks and pair them by position into three null
+   baseline on six calibration blocks and pair them by position into three null
    comparisons, standing in for the tuning, confirmation and rerun blocks. A neutral
    candidate that merely draws random numbers differently is an independent draw from the
    same distribution, so each seed's vector of deltas is symmetric about zero. Flip the
@@ -1276,7 +1284,7 @@ calibration below measures the real, correlated figure.
    - Only standard-error-based regression guards are eligible — never an improvement test,
      a quality cap, a deterministic comparison or a correctness check.
    - A breached eligible guard is `unresolved` until its rerun. All guards breached in one
-     decision share **one** rerun block: the candidate and the frozen baseline are
+     decision share **one** rerun block: the candidate and the baseline are
      evaluated on the next unexposed block, and a guard is `failed` only if breached
      again, otherwise `passed_on_rerun`. That block is then retired too.
    - Reruns happen only in full mode and only after the improvement tests have passed, so
@@ -1310,7 +1318,7 @@ A candidate that lowers `D2` and raises `N2` beyond the guards is never accepted
 automatically. For the human review of section 8.6 the report ranks such a trade with
 
 ```text
-trade_score = sqrt( N2_score * D2_score )        # both against the frozen baseline; below 1 is better
+trade_score = sqrt( N2_score * D2_score )        # both against the baseline; below 1 is better
 ```
 
 Model negative log fidelity as `−ln F ≈ a·N2 + b·D2` (`a`: error per two-qubit gate; `b`:
@@ -1488,7 +1496,7 @@ test-dependency set (`envs/dev-tests.lock`).
   pins exact heuristic outputs at fixed seeds (`test_sabre_layout.py`, for example, asserts
   specific layouts). Any change to the SABRE search or its random draws fails such tests
   without being wrong — and that is the only class of candidate that can `PASS`. Freeze the
-  list per campaign: derive it by running the baseline's tests against a *reshuffled
+  list per baseline build: derive it by running the baseline's tests against a *reshuffled
   baseline* (the baseline snapshot with its SABRE seeds offset by a constant, a
   semantically neutral change), then review it by hand. Output quality on those behaviors
   is what the quality panel and C0–C7 measure properly.
@@ -1634,7 +1642,7 @@ a later stage.
 
 - **Changed stages** are the union of (a) a conservative, level-aware map from changed
   source paths to the pipeline stages where that code runs, applied to the file-level diff
-  between the evolved snapshot and the **frozen baseline** snapshot, and (b) a change-scope
+  between the evolved snapshot and the **baseline** snapshot, and (b) a change-scope
   declaration supplied with the run (`--change-scope`), which may widen but never narrow
   (a). Examples: `crates/transpiler/src/passes/sabre/**` → layout, routing; VF2 code →
   layout, routing, and optimization at level 3 (which runs a post-layout there); two-qubit
@@ -1657,7 +1665,7 @@ a later stage.
   `general-lite-v1`, C1-lite (5.3) verifies every stage on the 18 small scored input
   groups at all levels, so the review of an optimization-stage candidate has exact
   evidence on half the panel; the medium and large cases keep the limit above. Also
-  explain any case that verified at the frozen baseline and does not under the candidate.
+  explain any case that verified at the baseline and does not under the candidate.
 
 ### 5.10. Canaries and the determinism audit
 
@@ -1667,6 +1675,59 @@ claim that quality observations are reproducible; a failed audit makes the affec
 observations `unstable` and their records `unresolved`.
 
 ## 6. How seeds are used
+
+**The path of one seed through a comparison.** A transpiler seed is a non-negative
+integer, and one seed means one compile: the frozen circuit of a case, on its frozen
+target, with its declared options, by one revision, with `seed_transpiler` set to that
+integer. Nothing else about the case changes from seed to seed; the seed only changes
+which random choices SABRE makes. The harness handles seeds in seven steps, and the
+subsections that follow detail each of them.
+
+1. **Declared.** The policy names the seed blocks of 6.3 (`TB0` = 0–99, `CB1` = 100–199,
+   …). Each manifest case declares `seeds_per_block`: 100 unless the case is judged on
+   its own (`hwb12` uses the first 20 seeds of each block; canaries and the other
+   one-at-a-time cases of 6.3 the first 10). Both are frozen in the profile. No run
+   ever picks its own seeds, and no seed is ever drawn at random.
+2. **Allocated.** The coordinator chooses the block for each step of a run and the user
+   never does. `smoke` compiles one seed per case, from `TB0`. `screen` and the tuning
+   step of `compare` use `TB0`, which is reused freely because it is tuning data. The
+   confirmation step of `compare` asks the exposure ledger for the lowest `CB` block not
+   yet exposed, and a guard rerun for the one after it. Calibration uses the `KB` blocks
+   on the baseline alone. Within one step every revision in the comparison — candidate
+   and baseline — is evaluated on the same block. This is the point
+   of the blocks: a candidate kept because it looked good on `TB0` may owe part of that
+   to those hundred seeds, so it must repeat the gain on seeds it was never selected on.
+3. **Dispatched.** For each case and revision the coordinator writes job files with an
+   explicit seed list — at most 25 seeds per worker process (2.3), so a 100-seed block is
+   four jobs — and launches the worker inside that revision's environment with
+   `QISKIT_TRANSPILER_SEED` unset and user settings ignored (2.6), so the only seed a
+   compile can see is the one in its job.
+4. **Compiled.** For each seed in the job the worker constructs a fresh preset pass
+   manager with `generate_preset_pass_manager(..., seed_transpiler=s)` — the seed binds
+   at construction, so a manager is never reused across seeds — runs it on the frozen
+   circuit, exports the canonical output and appends one record carrying the case ID,
+   revision, seed and block ID (appendix). Inside Qiskit that seed reaches only
+   `SabreLayout` and `SabreSwap` (6.2).
+5. **Measured and audited.** Harness code computes `D2` and `N2` from each record. The
+   determinism audit (6.7) recompiles a sample of (case, seed) pairs in fresh processes
+   and requires identical output hashes; that is what allows records to be cached by
+   build, case, block and seed (9.3), so each reference build's `TB0` results are
+   compiled once and reused by every later screening run.
+6. **Paired and scored.** The evaluator joins records by (case, seed) across revisions.
+   Each seed collapses to one number, `delta_s`, the weighted log change across the
+   panel; its mean is `ln(score)` and its spread gives `SE` (4.3, with the caveat of
+   6.4). A (case, seed) missing on any revision leaves the panel incomplete and rules out
+   `PASS` (4.5).
+7. **Retired.** Whatever the verdict, the ledger records every `CB` block the decision
+   exposed, and the next decision starts from the next block. A rejected candidate's
+   block is retired too, because its results have been seen and are tuning data from
+   then on. `TB0` is never retired.
+
+In the focused profile one revision on one block is 9 cases × 100 seeds = 900 compiles
+(about 10 CPU-minutes, 3.9). A full decision with three distinct revisions therefore
+costs 900 compiles on `TB0` for the candidate — the references' `TB0` records are
+cached — and 2,700 on the confirmation block, before the held-out guards, the routing
+replay and any rerun.
 
 ### 6.1. Every source of randomness, and how it is pinned
 
@@ -1738,18 +1799,18 @@ seed set.
 Rules:
 
 - **Same block for every revision in a comparison.** On a confirmation block the
-  candidate, the frozen baseline and the current best are all evaluated on that block.
+  candidate and the baseline are both evaluated on that block.
   Never compare fresh candidate seeds with cached tuning-block baseline results.
 - **Guard reruns** (4.9) consume the next unexposed block — one per decision at most — and
   retire it.
 - **Screening never touches a confirmation block**, so iterating costs no reserved data.
 - **The exposure ledger.** Block use and held-out exposure are recorded in an append-only,
-  file-locked ledger in the results root, keyed by manifest hash — not by campaign and not
-  by baseline identity, since a rebased baseline does not make an exposed block fresh. A
-  new campaign therefore starts from the first unexposed block and prints how many
-  decisions and exposures came before. The residual caveat: the ledger is local to one
-  results root, so work recorded elsewhere is invisible to it. Evaluate successive
-  candidates of one line of work in one campaign and one results root.
+  file-locked ledger in the results root, keyed by manifest hash — not by baseline
+  identity, since a rebased baseline does not make an exposed block fresh. Every run
+  therefore starts from the first unexposed block and prints how many decisions and
+  exposures came before. The residual caveat: the ledger is local to one results root, so
+  work recorded elsewhere is invisible to it. Evaluate successive candidates of one line
+  of work in one results root.
 - Cache keys include the seed-block ID (9.3).
 
 ### 6.4. Pairing, and what it does and does not assume
@@ -1835,10 +1896,10 @@ Probe (`cz` target; seeds 0–2, level 3 seeds 0–1), range of `D2` / `N2`:
 | C1–C2 correctness | **0–3** | Each level assembles different passes |
 | C6 and C7 | The scored level; general profiles: every scored level | Coverage differs by level (7.4) |
 | `general-lite-v1` | **0–3 for every seed-sensitive input**; level 0 only for the path- and ring-shaped inputs (deterministic guards at 1–3); levels 0–2 for `su2_circular_n89` (10-seed guard at 3) | The suite's seed-blind and VF2-bound inputs (3.7.1); each level's summary is guarded, so a level-2 gain cannot hide a level-1 loss |
-| General profile | **0–3 for every supported input/target pair** | A campaign restricted to level 2 supports only that narrower claim |
+| General profile | **0–3 for every supported input/target pair** | A comparison restricted to level 2 supports only that narrower claim |
 
-Nothing in the focused profile guards levels 1 and 3 on the scored circuits before the
-current best moves; section 12 lists adding three guard-only `cz` cases at each of those
+Nothing in the focused profile guards levels 1 and 3 on the scored circuits; section 12
+lists adding three guard-only `cz` cases at each of those
 levels as an open option.
 
 ### 7.3. Levels in the general score
@@ -1850,7 +1911,7 @@ A level is a dimension of the case, like basis or topology:
   case ID contains the level; the four levels of one input are separate cases in the
   **same input group**, never independent inputs.
 - **Level summaries guard.** Each level's marginal summary (4.6) must satisfy
-  `ln(score) <= 2·SE` for `D2` and `N2` against the frozen baseline, so a gain at level 2
+  `ln(score) <= 2·SE` for `D2` and `N2` against the baseline, so a gain at level 2
   cannot hide a regression at level 1. Per-case caps apply at every level.
 - **Reporting.** Scores, coverage and worst cases are shown per level. Do not require
   level 3 to beat level 2: the heuristics promise no such ordering.
@@ -1896,7 +1957,7 @@ The evaluator turns observations into constraint records
 | Field | Values |
 | --- | --- |
 | `kind` | `harness` (inputs, builds, protocol), `correctness`, `guard` (quality regression), `cost`, `improvement`, `completeness` |
-| `subject` | `evolved` (a check of the candidate or of the comparison) or `reference` (a check of the frozen baseline or current best alone) |
+| `subject` | `evolved` (a check of the candidate or of the comparison) or `reference` (a check of the baseline alone) |
 | `result` | `passed`, `failed`, `passed_on_rerun`, `unresolved`, `not_evaluated` |
 
 Three conventions make the verdict well defined. The set of **required record IDs** comes
@@ -1915,12 +1976,12 @@ unexpected evolved crash or timeout is a `failed` `completeness` record.
 | # | Constraint | Kind | Reference |
 | --- | --- | --- | --- |
 | FA1 | All required correctness checks pass on every revision, and stage coverage is satisfied | correctness | — |
-| FA2 | Primary `cz` panel on the tuning block: `ln(D2_score) + 2·SE < 0` | improvement | Current best |
-| FA3 | On each of `cx`, `cz`, `ecr`: `ln(D2_score) <= 2·SE`, `ln(N2_score) <= 2·SE`, no `case_ratio` above 1.05 for either metric | guard | Frozen baseline |
-| FA4 | Each held-out case: `ln(case_ratio) <= 2·SE_case` and ratio at most 1.05, both metrics; deterministic and zero-baseline guards show no increase | guard | Frozen baseline |
-| FA5 | Canaries equal their expected values (a departure is `unresolved`) | guard | Frozen baseline |
-| FA6 | Timing panel: `ln_panel <= noise_panel`, no case breach, the in-run control arm clean; the multi-seed companion and preset-construction panel likewise when required | cost | Frozen baseline |
-| FA7 | FA2 and FA3 hold **again** on a fresh confirmation block, evaluated for the candidate and both references on that block; FA4 and every canary are evaluated there | improvement, guard | As above |
+| FA2 | Primary `cz` panel on the tuning block: `ln(D2_score) + 2·SE < 0` | improvement | Baseline |
+| FA3 | On each of `cx`, `cz`, `ecr`: `ln(D2_score) <= 2·SE`, `ln(N2_score) <= 2·SE`, no `case_ratio` above 1.05 for either metric | guard | Baseline |
+| FA4 | Each held-out case: `ln(case_ratio) <= 2·SE_case` and ratio at most 1.05, both metrics; deterministic and zero-baseline guards show no increase | guard | Baseline |
+| FA5 | Canaries equal their expected values (a departure is `unresolved`) | guard | Baseline |
+| FA6 | Timing panel: `ln_panel <= noise_panel`, no case breach, the in-run control arm clean; the multi-seed companion and preset-construction panel likewise when required | cost | Baseline |
+| FA7 | FA2 and FA3 hold **again** on a fresh confirmation block, evaluated for the candidate and the baseline on that block; FA4 and every canary are evaluated there | improvement, guard | As above |
 | FA8 | Complete measurements, zero unexpected crashes or timeouts, determinism audit passed | completeness | — |
 
 ### 8.3. General acceptance checklists
@@ -1936,11 +1997,11 @@ validation split is compiled for the first time in that decision:
 | # | Constraint | Kind | Reference |
 | --- | --- | --- | --- |
 | LA1 | All required correctness checks pass on every revision — C0, C6 and C1-lite on every scored output, C7 on the 100-qubit circuits — and stage coverage is satisfied (5.9) | correctness | — |
-| LA2 | Tuning split, against **both** the current best and the frozen baseline: `ln(D2_score) + 2·SE < ln(0.99)` | improvement | Current best, frozen baseline |
-| LA3 | Breadth on the tuning split, against both references: at least 4 of the 8 families satisfy `ln(D2_family_score) + 2·SE_family < 0`, and removing any one family and renormalizing leaves `D2_score < 1` | improvement | As above |
-| LA4 | Guards against the frozen baseline: every family and level summary of both splits has `ln(score) <= 2·SE` for `D2` and `N2`; so does overall `N2`; no positive case ratio above 1.05; per-case standard-error guards, deterministic guards, zero-baseline guards and the all-to-all control show no increase; canaries hold; band, topology and basis summaries are reported | guard | Frozen baseline |
-| LA5 | Validation split on the confirmation block, against both references: `ln(D2_score) + 2·SE < 0` (no practical threshold: the split is smaller and was never screened against); its family and level summaries under LA4 | improvement, guard | As above |
-| LA6 | Cost against the frozen baseline: the lite timing panel, T1–T19, the preset-construction panel and the companion when required, each `ln_panel <= noise_panel` with no case breach and a clean control arm; the memory panel within its noise, no case above 1.10 | cost | Frozen baseline |
+| LA2 | Tuning split, against the baseline: `ln(D2_score) + 2·SE < ln(0.99)` | improvement | Baseline |
+| LA3 | Breadth on the tuning split: at least 4 of the 8 families satisfy `ln(D2_family_score) + 2·SE_family < 0`, and removing any one family and renormalizing leaves `D2_score < 1` | improvement | As above |
+| LA4 | Guards against the baseline: every family and level summary of both splits has `ln(score) <= 2·SE` for `D2` and `N2`; so does overall `N2`; no positive case ratio above 1.05; per-case standard-error guards, deterministic guards, zero-baseline guards and the all-to-all control show no increase; canaries hold; band, topology and basis summaries are reported | guard | Baseline |
+| LA5 | Validation split on the confirmation block: `ln(D2_score) + 2·SE < 0` (no practical threshold: the split is smaller and was never screened against); its family and level summaries under LA4 | improvement, guard | As above |
+| LA6 | Cost against the baseline: the lite timing panel, T1–T19, the preset-construction panel and the companion when required, each `ln_panel <= noise_panel` with no case breach and a clean control arm; the memory panel within its noise, no case above 1.10 | cost | Baseline |
 | LA7 | Complete measurements, zero unexpected crashes or timeouts, determinism audit passed, `U_instance` and the exposure counts of the validation inputs printed in the report | completeness | — |
 
 The lite checklist differs from the full one in three deliberate ways: `U_instance` is
@@ -1953,10 +2014,10 @@ independent validation panel, on a fresh seed block:
 
 | # | Constraint | Kind |
 | --- | --- | --- |
-| GA1 | Meaningful improvement against **both** the current best and the frozen baseline: `ln(D2_score) + 2·SE < ln(0.99)` and `U_instance < ln(0.99)`. The validation panel must improve, not merely avoid regression | improvement |
-| GA2 | Breadth, against both references: at least 4 of the 8 families satisfy `ln(D2_family_score) + 2·SE_family < 0`, and removing any one family and renormalizing still leaves `D2_score < 1`. These are concentration screens, not eight significance claims | improvement |
-| GA3 | Regression guards against the frozen baseline: every family, size, topology, basis and level summary has `ln(score) <= 2·SE` for `D2` and `N2`; so does overall `N2`; no positive case ratio above 1.05; zero-baseline guards show no increase; all-to-all guards are retained | guard |
-| GA4 | Cost against the frozen baseline: every timing panel (end-to-end and reusable-manager, plus companions when required) and each family summary within its calibrated noise, no case above 1.10; the memory aggregate within its noise, no case above 1.10 | cost |
+| GA1 | Meaningful improvement against the baseline: `ln(D2_score) + 2·SE < ln(0.99)` and `U_instance < ln(0.99)`. The validation panel must improve, not merely avoid regression | improvement |
+| GA2 | Breadth: at least 4 of the 8 families satisfy `ln(D2_family_score) + 2·SE_family < 0`, and removing any one family and renormalizing still leaves `D2_score < 1`. These are concentration screens, not eight significance claims | improvement |
+| GA3 | Regression guards against the baseline: every family, size, topology, basis and level summary has `ln(score) <= 2·SE` for `D2` and `N2`; so does overall `N2`; no positive case ratio above 1.05; zero-baseline guards show no increase; all-to-all guards are retained | guard |
+| GA4 | Cost against the baseline: every timing panel (end-to-end and reusable-manager, plus companions when required) and each family summary within its calibrated noise, no case above 1.10; the memory aggregate within its noise, no case above 1.10 | cost |
 | GA5 | Required coverage, independent inputs, semantic evidence and measurements complete; zero unexpected crashes or timeouts; an unused validation reserve is available | completeness |
 
 A breadth shortfall is a lack of demonstrated improvement, not a violation, which is why
@@ -2004,15 +2065,14 @@ These codes apply to the commands that produce a verdict (`compare`, `screen`,
 
 | Command | What it does | Can return `PASS`? |
 | --- | --- | --- |
-| `compare --baseline A --evolved B` | Full lifecycle. Defaults: `focused-v1`, a new campaign, a new run directory. Options select a profile, an existing campaign, the results root and a change-scope file. Prints the selected scope and expected work before measuring | Yes |
+| `compare --baseline A --evolved B` | Full lifecycle. Defaults: `focused-v1`, a new run directory. Options select a profile, the results root and a change-scope file. Prints the selected scope and expected work before measuring | Yes |
 | `screen …` | Evolved correctness, then the tuning block and in-panel guards (FA1–FA3, canaries not marked acceptance-only; cost on request). Exposes no held-out input, confirmation seed or reserve | No — at best `INCONCLUSIVE`, with unrun checks `not_evaluated` |
 | `smoke …` | Build every revision, one seed per case on a reduced list, structural checks. Writes `smoke.json` and **no** decision | No decision |
-| `freeze`, `calibrate` | Create a campaign: validate the baseline, profile cost, run or reuse the calibrations, freeze manifest and policy hashes | — |
+| `calibrate` | Baseline preflight on its own: validate the baseline, profile cost, run or reuse the calibrations and record the manifest and policy hashes they were made under; `compare` runs the same step when no matching record exists | — |
 | `evaluate`, `report` | Recompute the decision and reports from saved observations, without compiling | Re-derives the verdict |
 | `review` | Record a human review of a reviewable decision (8.6) | Never |
 | `repro <observation-id>` | Rebuild one observation's exact job for debugging | — |
 
-A supplied baseline whose identity differs from the campaign's frozen one is an `ERROR`.
 Every run directory holds `decision.json`, `report.md`, raw observations, logs, build
 provenance and the commands to reproduce. The report leads with the scope-qualified
 verdict and failed constraints, then aggregate improvement with uncertainty, marginal
@@ -2025,10 +2085,10 @@ exposures already recorded for the manifest.
 
 Under the stage-coverage rule `INCONCLUSIVE` is the expected outcome for any candidate
 that touches synthesis, the optimization stage or shared infrastructure. Without a defined
-path a campaign would stall behind the first such candidate.
+path every such candidate would end there.
 
-`qiskit-transpile-bench review --decision <id> --reviewer <name> --rationale <file>
-[--promote]` appends a review entry to the campaign: the decision, the reviewer, the
+`qiskit-transpile-bench review --decision <id> --reviewer <name> --rationale <file>`
+appends a review entry to the decision: the decision, the reviewer, the
 constraints examined, the rationale (for a trade, including the `trade_score` of 4.11 and
 the affected cases) and the outcome, `reviewed_accept` or `reviewed_reject`.
 
@@ -2037,28 +2097,25 @@ the affected cases) and the outcome, `reviewed_accept` or `reviewed_reject`.
   decision with a failed correctness, completeness or harness record is never reviewable.
 - `reviewed_accept` is a distinct state. It is never rewritten to `PASS`, and
   `improved_under_constraints` keeps the value the verdict gave it.
-- With `--promote`, a reviewed-accepted candidate becomes the campaign's current best, so
-  later candidates are measured against it. Promotion requires a **full-mode** decision —
-  a `screen` run, which is always `INCONCLUSIVE`, has no confirmation, held-out or cost
-  evidence and can never be promoted. Every later report flags that the current best was
-  accepted by review. Guards still reference the frozen baseline. Whether promotion by
-  review is allowed at all is a policy switch frozen per campaign.
+- A review never changes the reference: the next comparison names its baseline on the
+  command line as before, and a `reviewed_accept` is visible only in that decision's
+  record and report.
 - Accepting an explanation for a canary departure re-baselines the canary, which is a new
   profile version, not an in-place edit.
 
-## 9. Run lifecycle, campaign state and caching
+## 9. Run lifecycle and caching
 
 ### 9.1. Lifecycle of `compare`
 
 1. **Validate and build.** Check paths and profile; snapshot and build every revision (the
-   baseline, a second baseline build for the control arm, the evolved revision, and the
-   current best when it differs from the baseline); verify provenance; run the input
+   baseline, a second baseline build for the control arm and the evolved revision); verify provenance; run the input
    round-trip (3.8).
-2. **Campaign preflight** (first run, or `freeze`): baseline correctness, available
-   oracles and their stage coverage, canary expected values, zero-baseline roles, cost
-   profile, timing/memory A/A calibration and false-rejection calibration (reused from the
-   results root when their key matches). Freeze manifest and policy before any candidate is
-   evaluated. An invalid baseline stops here.
+2. **Baseline preflight** (also available on its own as `calibrate`): baseline
+   correctness, available oracles and their stage coverage, canary expected values,
+   zero-baseline roles, cost profile, timing/memory A/A calibration and false-rejection
+   calibration (reused from the results root when their key — baseline build, manifest,
+   policy and machine — matches). The manifest and policy hashes are recorded before any
+   candidate is evaluated. An invalid baseline stops here.
 3. **Evolved correctness first:** C1–C5, `api_checks`, upstream tests, C7 on the first
    seeds of the tuning block, change-scope and stage-coverage resolution. A mismatch stops
    the run with all evidence recorded.
@@ -2070,9 +2127,9 @@ the affected cases) and the outcome, `reviewed_accept` or `reviewed_reject`.
    record (a guard awaiting its rerun does not stop the run): timing panel with its
    control arm, companion and preset panel if required, memory (general). Controlled
    runner, exclusive, interleaved.
-6. **Confirmation.** Take the next unexposed seed block. Evaluate the candidate, the
-   frozen baseline and the current best on it: tuning-panel quality rules again with C0,
-   C6 and C7, held-out guards (candidate and frozen baseline only), every canary. General:
+6. **Confirmation.** Take the next unexposed seed block. Evaluate the candidate and the
+   baseline on it: tuning-panel quality rules again with C0, C6 and C7, held-out guards,
+   every canary. General:
    also the independent validation panel under all rules. If the improvement tests passed
    and eligible guards were breached, run the one shared rerun block (4.9).
 7. **Retire** every exposed block — and, for the full general profile, the exposed
@@ -2080,16 +2137,15 @@ the affected cases) and the outcome, `reviewed_accept` or `reviewed_reject`.
    verdict. Keep retired cases as regressions. Store unsuccessful attempts as well as
    passes.
 8. **Report.** Mark every constraint passed, passed on rerun, failed, unresolved or not
-   evaluated. On `PASS` — or on a promoted review (8.6) — record the candidate as the
-   campaign's current best; the frozen baseline never moves.
+   evaluated. No verdict rewrites the reference: the next comparison names its baseline on
+   the command line again.
 
-### 9.2. Campaign state
+### 9.2. Run state
 
-`campaign.json` holds: campaign ID; profile, manifest and policy hashes; frozen-baseline
-identity; current-best identity, how it was accepted, and its archived snapshot (so it can
-be rebuilt); the blocks this campaign used; the validation-reserve ledger; references to
-the calibration records in use; and the decision and review history. Block and held-out
-exposure live in the results-root ledger (6.3). All files are written atomically; an
+`run.json` holds: run ID; profile, manifest and policy hashes; baseline and evolved
+identities with their archived snapshots (so either can be rebuilt); the blocks this run
+used; references to the calibration records in use; and the decision and any review.
+Block, held-out and validation-reserve exposure live in the results-root ledger (6.3). All files are written atomically; an
 interrupted run resumes from saved observations and never accepts partial results.
 
 ### 9.3. Caching
@@ -2151,7 +2207,7 @@ the cache; a test proves no process imports two Qiskits. Smoke runs issue no dec
 | M2-6 | Stage-coverage engine: snapshot diff, level-aware path map, change-scope file, substituted components | M |
 | M2-7 | Scorer: ratios, scores, `SE`, guards, caps, deterministic and zero handling, marginal summaries; evaluation from saved observations only | M |
 | M2-8 | Constraint records, required-ID sets, verdict procedure, `screen` and `compare` flows | M |
-| M2-9 | Seed-block and exposure ledger, campaign state, confirmation, rerun block, retirement | M |
+| M2-9 | Seed-block and exposure ledger, run state, confirmation, rerun block, retirement | M |
 | M2-10 | Controlled-runner definition and quiet-machine checks; timing modes, interleaving with the control arm, A/A calibration and its reuse, noise floors, companion and preset panels, `diagnostics` mode | L |
 | M2-11 | Sign-flip false-rejection calibration and the predeclared remedy | M |
 | M2-12 | Held-out and canary panels; determinism audit | S |
@@ -2199,7 +2255,7 @@ the adapter suite is green on every supported Qiskit version.
 
 **M5 — Full general qualification (`general-v1`, 3.7.2), on demand**
 
-Started only when a lite campaign has produced candidates whose claim needs to extend
+Started only when lite comparisons have produced candidates whose claim needs to extend
 beyond the public in-tree panel.
 
 | Task | Work | Size |
@@ -2259,7 +2315,7 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
    rejected; a failed improvement record on a valid panel gives `NO_IMPROVEMENT`, not a
    violation; a breadth shortfall gives `NO_IMPROVEMENT`; a failed reference gives
    `INCONCLUSIVE`; a candidate failure outranks a reference failure; screening never
-   passes and can never be promoted; zero values follow 4.5 and never reach `ln(0)`;
+   passes; zero values follow 4.5 and never reach `ln(0)`;
    exhausted seed blocks or validation reserves cannot pass.
 6. **Estimators.** The worked example of 4.3 reproduces to the printed digits; the weight
    tree reproduces 1/2592 for the full grid and, in the lite order, 1/96, 1/128 and
@@ -2279,12 +2335,12 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
 
 | Risk or open question | Consequence | Mitigation or decision needed |
 | --- | --- | --- |
-| No at-scale oracle for the optimization stage at levels 2–3 | Automatic `PASS` limited to layout/routing candidates; most other runs end `INCONCLUSIVE` | State it in every report; the review workflow keeps campaigns moving; pursue a stronger oracle (block-wise equivalence of resynthesized two-qubit regions is one candidate) as separate work |
+| No at-scale oracle for the optimization stage at levels 2–3 | Automatic `PASS` limited to layout/routing candidates; most other runs end `INCONCLUSIVE` | State it in every report; the review workflow gives such candidates a path; pursue a stronger oracle (block-wise equivalence of resynthesized two-qubit regions is one candidate) as separate work |
 | The verifier's pinned Qiskit shares its lineage with every revision | A common-mode error goes unseen | Keep metric, legality and replay code pure Python; mutation tests (section 11); update the pin deliberately, never implicitly |
-| No campaign-wide false-acceptance control | Each confirmation errs about 2.3% of the time, so `N` attempts accumulate about `1 − 0.977^N` | Fresh blocks and reserves reduce overfitting; report the attempt count; claim no formal rate; consider a sequential-testing policy before automating a search loop |
+| No false-acceptance control across repeated comparisons | Each confirmation errs about 2.3% of the time, so `N` attempts accumulate about `1 − 0.977^N` | Fresh blocks and reserves reduce overfitting; report the attempt count; claim no formal rate; consider a sequential-testing policy before automating a search loop |
 | The focused profile has no minimum effect size | With small `SE` a negligible gain can pass | Decide before freezing whether to add a practical threshold like the general profile's 1% |
-| The guards tolerate small slowdowns by design | A panel slowdown within the noise allowance and a per-case 10% are purchasable | Accepted policy; all cost guards reference the frozen baseline so the allowance is not spent repeatedly |
-| Budget: `hwb12` 41–49 s per compile; level-3 VF2 up to 40 s; the full general grid is about 259,200 compiles and on the order of 150,000 timing processes per revision set | Campaigns too slow to run | `general-lite-v1` (3.7.1) at ≈87 CPU-minutes per revision and block is the profile campaigns run; the full grid is deferred to M5; profile before freezing; run quality concurrently; per-case seed counts |
+| The guards tolerate small slowdowns by design | A panel slowdown within the noise allowance and a per-case 10% are purchasable | Accepted policy; the allowance is not spent repeatedly as long as successive comparisons name the same original baseline (section 1) |
+| Budget: `hwb12` 41–49 s per compile; level-3 VF2 up to 40 s; the full general grid is about 259,200 compiles and on the order of 150,000 timing processes per revision set | Comparisons too slow to run | `general-lite-v1` (3.7.1) at ≈87 CPU-minutes per revision and block is the profile comparisons run; the full grid is deferred to M5; profile before freezing; run quality concurrently; per-case seed counts |
 | The lite validation split is thin: one to five groups per family, G6 and G8 with one, G2 and G7 scored at level 0 only, no reserves, no retirement | Overfitting to the tuning split is detected only weakly; a quarter of the validation score is level-0 routing of path- and ring-shaped inputs | Declared in 3.7.1; the exposure ledger counts validation exposures and warns; `general-lite-v2` adds a 2D-lattice Hamiltonian and a non-embeddable ansatz first; a lite `PASS` claims the fixed panel only |
 | Path- and ring-shaped in-tree inputs are seed-blind at levels 1–3 (VF2 embeds them) | Half the suite's Hamiltonian and ansatz inputs carry no routing signal above level 0 | Deterministic-guard role at 1–3, frozen from baseline data; scored at level 0; level placed directly under family in the lite weight tree so they cannot take a whole cell |
 | `time_qft_16.qasm` is a mis-written QFT whose `cx` pairs cancel; `quantum_volume.py` never applies its seed; three RevLib files and the Tokyo QUEKO instance declare qubits they do not use | Upstream fixtures taken at face value would mislabel bands, roles or sizes | Roles from measured baseline data, not names; size band from active qubits; QV matrices frozen with a recorded seed; each finding recorded in `PROVENANCE.md` |
@@ -2296,7 +2352,7 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
 | Fixture provenance and licensing (QUEKO files carry notices; `hwb12` and the five RevLib files carry none) | Redistribution problems | Record origin and license per fixture before committing it; replace a fixture whose terms cannot be established — `utils.py`'s synthesis constructions can stand in for the RevLib circuits |
 | Held-out circuits become tuning data | Guards lose independence | Exposure counts in the ledger; refresh in a new manifest version |
 | Clifford variants are not the scored routing problem (QFT) | At-scale evidence weaker than it looks | C6 on the scored circuit is the primary routing evidence; compare interaction graphs; report the variant's metrics beside the scored ones |
-| Levels 1 and 3 are unguarded in the focused profile | A level-2 gain could move the current best while hurting other levels | Optional: three guard-only `cz` cases at each of levels 1 and 3 (about 10 CPU-minutes per block) |
+| Levels 1 and 3 are unguarded in the focused profile | A level-2 gain could pass while hurting other levels | Optional: three guard-only `cz` cases at each of levels 1 and 3 (about 10 CPU-minutes per block) |
 
 **Defaults to freeze before the first candidate** (all adjustable, none after freezing):
 
@@ -2307,20 +2363,20 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
 | Per-case caps | 1.05 quality; 1.10 cost, together with the absolute noise floor |
 | `deterministic` and `zero_baseline` roles | Frozen from baseline data: constant on the tuning block and two calibration blocks; compared exactly, seed by seed; mixed zero/positive cases excluded or under the paired absolute rule |
 | Upstream tests | Baseline's Python tests against the evolved build are binding, minus a frozen output-pinned list that is report-only; Rust inline tests are the evolved snapshot's own |
-| Held-out panel | Level 2; primary `cz` target unless fixture-fixed; QUEKO in both default and SABRE-method configurations; references the frozen baseline only |
+| Held-out panel | Level 2; primary `cz` target unless fixture-fixed; QUEKO in both default and SABRE-method configurations; references the baseline |
 | General practical effect; breadth | 1%; at least 4 of 8 families and leave-one-family-out below 1 |
 | `general-lite-v1` specifics | Weight tree family → level → band → topology → basis → group; tuning split `+2·SE < ln(0.99)`, validation split `+2·SE < 0`; family and level summaries guarded, band/topology/basis summaries reported; bootstrap report-only with family strata; validation inputs not retired, staleness warning after 5 exposures; C1-lite on outputs with at most 25 active physical qubits, first 10 seeds, operators up to 10 qubits, then the all-zeros state plus 8 (up to 16 qubits) or 2 frozen random product states; `su2_circular_n89` level 3 and `hwb12` level 2 as 10- and 20-seed guards; size band from active qubits |
 | Bootstrap | 10,000 replicates, 95th percentile, frozen RNG seed, at least 3 groups per stratum, `sqrt(n/(n−1))` rescaling |
 | Numerical tolerances | Operators `rtol 1e-7`, `atol 1e-8`; states, expectations and TVD `1e-8` |
 | Timing protocol | 10 rounds; 1 warm-up; at least 3 timed calls and 1 s per round; control arm; companion seeds 0–19 × 3 rounds; T1–T2 with the level omitted |
 | Memory protocol | 5 fresh processes per case, median |
-| Cost calibration | 30 timing rounds and 10 memory processes × 2 baseline builds; 1,000 resamples; noise floor 1%, freeze refused above 5%; expiry 30 days or a machine change; reusable across campaigns |
+| Cost calibration | 30 timing rounds and 10 memory processes × 2 baseline builds; 1,000 resamples; noise floor 1%, freeze refused above 5%; expiry 30 days or a machine change; reusable across runs |
 | False-rejection calibration | Six calibration blocks; 10,000 sign flips; target rate at most 10% with the remedy |
 | Multiplicity remedy | One shared rerun block per decision for standard-error guards only, after the improvement tests pass; widen the multiplier only if the measured rate stays above 10% |
 | Determinism audit | 5% of observations, at least 10 per revision, half with a different hash seed |
 | Build | Baseline's Rust toolchain forced on every build; release profile; pinned build requirements |
 | Change scope | Widen-only declaration; unmapped paths mean all stages; fingerprint differences are report-only |
-| Review | Reviewable: `INCONCLUSIVE`, or a violation of quality/cost guards only; `reviewed_accept` distinct from `PASS`; promotion to current best allowed for full-mode decisions, and flagged |
+| Review | Reviewable: `INCONCLUSIVE`, or a violation of quality/cost guards only; `reviewed_accept` distinct from `PASS` and never a new reference |
 | Exposure ledger | Per results root, keyed by manifest hash; staleness warning after 5 exposing decisions |
 | Case timeout | The larger of 120 s and 10× the baseline's slowest observed compile |
 | Output retention | Full canonical output kept below 8 MB compressed |
@@ -2384,19 +2440,17 @@ pipeline-fingerprint hash; errors. Inapplicable metrics are absent, not zero.
   "improved_under_constraints": null,
   "profile": "focused-v1", "mode": "full",
   "hashes": {"manifest": "<hash>", "policy": "<hash>", "harness": "<version>"},
-  "campaign": {"id": "<id>", "decisions_before": 3, "confirmation_block": "CB4",
-               "rerun_block": null},
-  "identities": {"frozen_baseline": "<build id>", "current_best": "<build id>",
-                 "evolved": "<build id>"},
+  "blocks": {"decisions_before": 3, "confirmation_block": "CB4", "rerun_block": null},
+  "identities": {"baseline": "<build id>", "evolved": "<build id>"},
   "objective": [
-    {"block": "TB0", "metric": "D2", "panel": "cz", "reference": "current_best",
+    {"block": "TB0", "metric": "D2", "panel": "cz", "reference": "baseline",
      "score": 0.9731, "ln_score": -0.02727, "SE": 0.00561, "ln_score_plus_2SE": -0.01605},
-    {"block": "CB4", "metric": "D2", "panel": "cz", "reference": "current_best",
+    {"block": "CB4", "metric": "D2", "panel": "cz", "reference": "baseline",
      "score": 0.9768, "ln_score": -0.02347, "SE": 0.00587, "ln_score_plus_2SE": -0.01173}
   ],
   "constraints": [
     {"id": "FA3/TB0/cx/N2", "kind": "guard", "subject": "evolved",
-     "reference": "frozen_baseline", "value": 0.0031, "SE": 0.0024,
+     "reference": "baseline", "value": 0.0031, "SE": 0.0024,
      "threshold": "ln(score) <= 2*SE", "result": "passed"},
     {"id": "FA1/stage-coverage", "kind": "correctness", "subject": "evolved",
      "result": "unresolved",
