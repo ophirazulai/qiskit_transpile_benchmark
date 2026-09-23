@@ -577,11 +577,32 @@ Three points about this panel:
 
 ### 3.5. Canaries
 
-A canary has a constant known outcome. Its expected value is established on the validated
-baseline before tuning; any departure leaves its record `unresolved` until it is explained
-and freshly validated, because it signals that a simplification was lost (or gained)
-somewhere the score cannot see. Accepting an explanation means re-baselining the canary,
-which is a new profile version. Canaries run on the first 10 seeds of the block in use.
+A canary is a case whose output does not change: at the baseline it gives the same `D2`
+and `N2` on every seed, for a structural reason given in the table below. It catches what
+the score cannot see — a simplification that a candidate silently loses (or unexpectedly
+gains) outside the scored cases.
+
+- **Expected value.** A constant per canary and metric, measured on the validated baseline
+  when the profile is frozen, before any tuning, and stored in the profile.
+- **Evaluation.** In every step that evaluates canaries — baseline preflight, the tuning
+  block, confirmation — the harness compiles each canary for **both** the baseline and
+  the evolved revision on the first 10 seeds of the block in use (`TB0` when screening and
+  tuning, the confirmation block when confirming). The outcome is seed-independent, so 10
+  seeds suffice.
+- **Comparison.** Each revision is compared with the stored constant, not with the other
+  revision: exact equality of `D2` and `N2` on every one of the 10 seeds, with no ratio or
+  standard error. On a healthy baseline the two are the same; the constant also exposes a
+  baseline that has drifted from itself.
+- **Baseline miss.** A reference record fails: the environment, build or fixture changed,
+  the reference is invalid and the verdict is `INCONCLUSIVE` (8.4).
+- **Evolved miss.** Any departure in either direction makes FA5 `unresolved`, so the
+  verdict is `INCONCLUSIVE` — neither `PASS` nor `CONSTRAINT_VIOLATION`, because the change
+  is unexplained rather than shown to be wrong. A value below the constant is as suspicious
+  as one above it (below 300 on the ring would beat the input's own serial `cx` ladder).
+- **Resolution.** A person explains the departure and the new output passes the
+  correctness checks. Accepting the explanation re-baselines the canary: the new constant
+  is a new profile version, never an in-place edit (8.6), and the candidate is evaluated
+  again under that version.
 
 | Canary | Input | Expected at the baseline | Why it is constant |
 | --- | --- | --- | --- |
