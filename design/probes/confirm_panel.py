@@ -1,10 +1,10 @@
-"""The `general-lite-v1` panel: roles, splits, weights, cost and the draft manifest.
+"""The `confirm-profile` panel: roles, splits, weights, cost and the draft manifest.
 
-Behind section 3.7.1 of design/transpilation-benchmark-impl-plan.md.  Reads the raw
-probe records of general_lite_probe.jsonl (produced by general_lite_probe.py) and
+Behind section 3.7 of design/transpilation-benchmark-impl-plan.md.  Reads the raw
+probe records of confirm_probe.jsonl (produced by confirm_probe.py) and
 prints the coverage, weight and cost summary; with --manifest it also rewrites
-design/general-lite-v1.draft-manifest.json, and with --tables the markdown tables of the
-plan.  Run from anywhere:  python design/probes/general_lite_panel.py [--manifest] [--tables]
+design/confirm-profile.draft-manifest.json, and with --tables the markdown tables of the
+plan.  Run from anywhere:  python design/probes/confirm_panel.py [--manifest] [--tables]
 """
 import collections
 import json
@@ -13,8 +13,8 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PROBE = os.path.join(HERE, "general_lite_probe.jsonl")
-MANIFEST = os.path.join(HERE, "..", "general-lite-v1.draft-manifest.json")
+PROBE = os.path.join(HERE, "confirm_probe.jsonl")
+MANIFEST = os.path.join(HERE, "..", "confirm-profile.draft-manifest.json")
 
 # ----------------------------------------------------------------------------- panel
 # probe case id -> (split, {level: role})
@@ -313,7 +313,7 @@ def manifest(S):
         for l, r in sorted(roles.items()):
             lv = S[c]["levels"][l]
             cases.append(collections.OrderedDict([
-                ("case_id", f"general-lite/{NAME[c]}{'+sabre' if variant == 'sabre_methods' else ''}/{tid}/L{l}"),
+                ("case_id", f"confirm/{NAME[c]}{'+sabre' if variant == 'sabre_methods' else ''}/{tid}/L{l}"),
                 ("role", ROLE_NAME[r]),
                 ("family", f["family"]),
                 ("size_band", band(act) if f["family"] != "canary" else None),
@@ -344,9 +344,9 @@ def manifest(S):
               for i in TIMING_INPUTS + ["hwb12"]]
     scored = [c for c in cases if c["role"] == "scored"]
     doc = collections.OrderedDict([
-        ("profile", "general-lite-v1"),
+        ("profile", "confirm-profile"),
         ("status", "draft — proposal; roles must be confirmed from baseline data on TB0 and two calibration "
-                   "blocks before freezing (impl plan 3.7.1, 4.5)"),
+                   "blocks before freezing (impl plan 3.7, 4.5)"),
         ("baseline", {"qiskit": "2.6.0.dev0", "commit": "0131cbbcc", "fixtures_from": "test/benchmarks/ at that commit"}),
         ("weight_tree_order", ["family", "level", "size_band", "topology", "native_basis", "input_group", "variant"]),
         ("policy", {
@@ -372,7 +372,7 @@ def manifest(S):
             "G2 and G7 validation split at levels 1-3: the suite's only inputs are seed-blind (path/ring) or canaries",
             "G7 level 3: su2_circular_n89 is a 10-seed guard (40 s per compile in VF2)",
             "fewer than 3 input groups per family/size cell per split: bootstrap report-only",
-            "ecr scored nowhere: guarded through the focused basis guards only",
+            "ecr scored nowhere: guarded through the iterations profile's basis guards only",
         ]),
         ("cases", cases),
         ("timing_panel_additions", timing),

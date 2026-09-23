@@ -8,8 +8,8 @@ question:
 > evolved version improve transpilation under the declared constraints?
 
 **Status: proposal — no part of the harness is built.** A few throwaway prototypes (the
-metric extractor, two equivalence recipes, a routing-replay check) and the general-lite
-probe of 3.7.1 (kept under `design/probes/`) were run to test feasibility; their results
+metric extractor, two equivalence recipes, a routing-replay check) and the confirm-profile
+probe of 3.7 (kept under `design/probes/`) were run to test feasibility; their results
 are quoted where relevant. The document is self-contained: it
 defines its own terms, workloads, formulas and policies, and implementing or interpreting
 it requires no other design document. Statements about Qiskit's behavior were read from
@@ -42,11 +42,11 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    both on one fixed block of 100 transpiler seeds, verifies the outputs, and prints one
    of five verdicts: `PASS`, `NO_IMPROVEMENT`, `CONSTRAINT_VIOLATION`, `INCONCLUSIVE` or
    `ERROR`. Of those, only `PASS` exits with code 0. The only other choice the user makes
-   is the profile (`--profile`), which selects the workload: the small *focused* panel for
-   iterating, the broad *general-lite* panel for the final check.
+   is the profile (`--profile`), which selects the workload: `iterations-profile`, the small panel
+   for iterating, or `confirm-profile`, the broad panel for the final check.
 2. **One objective, hard constraints, one reference.** The objective is lower **native
    two-qubit depth (`D2`)**. Native two-qubit gate count (`N2`), compilation time, peak
-   memory (general profiles) and correctness are constraints. It is never a weighted sum: a
+   memory (confirm profile) and correctness are constraints. It is never a weighted sum: a
    depth gain cannot pay for a wrong circuit or a failed cost guard. Improvement and every
    guard are judged against the same baseline, the one named on the command line; the
    harness keeps no accepted-change history of its own.
@@ -61,20 +61,16 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    two, because a profile has many guards, 4.9); no case may exceed 1.05 (quality) or
    1.10 beyond its absolute noise floor (cost). Section 4 works an example to the last
    digit.
-5. **Workloads.** The *focused* profile scores three 100-qubit circuits — QFT (25,100
+5. **Workloads.** The *iterations* profile scores three 100-qubit circuits — QFT (25,100
    gates, all 4,950 qubit pairs interact), a square-lattice Heisenberg simulation (7,660
    gates, 180 pairs) and a three-layer QAOA on a Barabási–Albert graph (2,264 gates, 196
    pairs) — on a 193-qubit heavy-hex target with a `cz` basis at optimization level 2.
    The same circuits on `cx`/`ecr` targets, two canaries and a 19-case timing panel are
-   guards. The *general-lite* profile is the general profile that runs in practice: 38
-   scored input groups (133 cases) and 14 guard inputs drawn entirely from Qiskit's
-   in-tree benchmark suite — all eight workload families at levels 0–3 on fourteen
-   frozen targets (heavy-hex and grid classes, one of them directed; `cx`/`cz` scored,
-   `ecr` guarded; an all-to-all control), at about 87 CPU-minutes of quality compiles
-   per revision. The full *general* profile — eight families, three size bands, four
-   topology classes, three bases and all four levels with at least three independent
-   inputs per cell — remains the specification of the complete claim and is deferred
-   until a lite comparison's claim needs it.
+   guards. The *confirm* profile is the broad check: 38 scored input groups (133 cases)
+   and 14 guard inputs drawn entirely from Qiskit's in-tree benchmark suite — all eight
+   workload families at levels 0–3 on fourteen frozen targets (heavy-hex and grid
+   classes, one of them directed; `cx`/`cz` scored, `ecr` guarded; an all-to-all
+   control), at about 87 CPU-minutes of quality compiles per revision.
 6. **Seeds.** A seed is the non-negative integer the worker passes as `seed_transpiler`
    when it builds the preset pass manager for one compile; inside Qiskit it drives only
    the SABRE layout and routing search (section 6.2 traces it to the trial level), and
@@ -88,16 +84,16 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    against it. The opening of section 6 walks one seed through a run.
 7. **Workflow: iterate on the small profile, check on the big one.** The tool guards
    against a candidate being selected on the seeds and circuits it is judged on by the
-   choice of profile, not by a second stage inside a run. Iterate with `focused-v1`
+   choice of profile, not by a second stage inside a run. Iterate with `iterations-profile`
    (three circuits, about ten CPU-minutes per run); when a change looks good there, run
-   `general-lite-v1` once. Its panel is mostly circuits the focused loop never
+   `confirm-profile` once. Its panel is mostly circuits the iteration loop never
    contained, so a gain that was an artifact of tuning against those three circuits does
    not carry over to the rest of it (the report also prints the score with the three
-   removed). Section 1 states the one rule this depends on: the lite run is a check, not
+   removed). Section 1 states the one rule this depends on: the confirm run is a check, not
    the loop.
-8. **Optimization levels.** The focused profile scores level 2 only, so a focused `PASS`
-   is a level-2 claim. Its timing panel spans levels 0–3. The general profiles give the
-   four levels equal weight inside every family and guard each level's summary. Section 7 tabulates what each level does at the baseline and why
+8. **Optimization levels.** The iterations profile scores level 2 only, so its `PASS`
+   is a level-2 claim. Its timing panel spans levels 0–3. The confirm profile gives the
+   four levels equal weight inside every family and guards each level's summary. Section 7 tabulates what each level does at the baseline and why
    a changed search budget is a configuration change, not an algorithmic gain.
 9. **Correctness, in layers (C0–C7).** Structural checks (legal instructions on real
    ordered physical qubits, valid layouts) run on *every* scored output. Exact
@@ -108,43 +104,43 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    the output stays Clifford. Every check records the pipeline *stages it covers*.
 10. **Known limit, stated up front.** At levels 2–3 two-qubit resynthesis emits
    non-Clifford angles, so the Clifford oracle verified the complete default pipeline on
-   only 1 of the 9 focused circuit/target pairs. Layout and routing, however, are verified
+   only 1 of the iterations profile's 9 circuit/target pairs. Layout and routing, however, are verified
    exactly by the replay check on every scored output. Automatic `PASS` is therefore
    available only to candidates confined to layout and routing; anything touching the
    optimization stage or two-qubit synthesis tops out at `INCONCLUSIVE` pending the review
    workflow of section 8.6. (At levels 0–1 the complete pipeline verified on all three
-   focused circuits; in `general-lite-v1` the small half of the panel is verified exactly
+   100-qubit circuits; in `confirm-profile` the small half of the panel is verified exactly
    at every level by C1-lite, 5.3, which gives that review real evidence.)
 11. **Noise drives the design.** At the baseline the per-seed standard deviation of
-    `ln D2` is 4–9% (1.4–3.9% for `N2`). With 100 seeds the focused score's standard error
+    `ln D2` is 4–9% (1.4–3.9% for `N2`). With 100 seeds the iterations score's standard error
     is about 0.6%, so a true gain of about 1.1% passes half the time and about 1.6% four
     times in five. Regression guards use three standard errors rather than two, because
-    the general-lite profile has about 45 noisy guards and at two standard errors they
+    the confirm profile has about 45 noisy guards and at two standard errors they
     would falsely reject a neutral candidate about two-thirds of the time; at three the rate is
-    about 6% (about 1% for the focused profile's seven), and the calibration of 4.9
+    about 6% (about 1% for the iterations profile's seven), and the calibration of 4.9
     measures the real, correlated figure on baseline-only data.
-12. **Delivery.** M0 contracts → M1 standalone runner (smoke only) → M2 focused evaluator
-    → M3 general-lite qualification (fixtures curated from the in-tree suite, no new
-    generators) → M4 automation → M5 the full general grid, on demand. A profile may issue
+12. **Delivery.** M0 contracts → M1 standalone runner (smoke only) → M2 iterations evaluator
+    → M3 confirm-profile qualification (fixtures curated from the in-tree suite, no new
+    generators) → M4 automation. A profile may issue
     `PASS` only after the known-outcome validation of section 11 succeeds.
 
 Numbers at a glance (baseline facts and planning estimates; sources in the sections cited):
 
 | Quantity | Value | Section |
 | --- | --- | --- |
-| Focused target | Heavy-hex distance 9: 193 qubits, 224 couplings, degree ≤ 3, diameter 32 | 3.2 |
+| Primary target | Heavy-hex distance 9: 193 qubits, 224 couplings, degree ≤ 3, diameter 32 | 3.2 |
 | Baseline `D2`, median over seeds 0–49 (`cz`, level 2) | QFT 1,843 · Heisenberg 400.5 · QAOA 1,528 | 3.3 |
 | Per-seed sd of `ln D2` / `ln N2` | 6.8% / 3.0% · 8.7% / 3.9% · 4.2% / 1.4% | 3.3 |
-| Standard error of the focused `ln D2` score | ≈1.8% with 10 seeds, ≈0.6% with 100 seeds (planning estimate) | 4.10 |
+| Standard error of the iterations `ln D2` score | ≈1.8% with 10 seeds, ≈0.6% with 100 seeds (planning estimate) | 4.10 |
 | True gain needed to pass 50% / 80% of the time | ≈1.1% / ≈1.6% | 4.10 |
-| False rejection of a neutral candidate by the noisy guards at `3·SE` | ≈1% focused (7 guards), ≈6% general-lite (≈45 guards), assuming independence; ≈65% for the lite profile at `2·SE` | 4.9 |
+| False rejection of a neutral candidate by the noisy guards at `3·SE` | ≈1% iterations (7 guards), ≈6% confirm (≈45 guards), assuming independence; ≈65% for the confirm profile at `2·SE` | 4.9 |
 | Routing replay on the scored circuits | 24 of 24 prototype compiles verified (levels 0–3); both injected defects rejected; ≤0.15 s each | 5.7 |
 | Clifford oracle, complete default pipeline | 3 of 3 at level 0, 3 of 3 at level 1 (`cz`); 1 of 9 at level 2. Prefix with substituted synthesis: 9 of 9 | 5.8 |
 | Indicative compile time, level 2 | 0.2–1.0 s scored circuits; 41 s `hwb12`; 5 s / 33 s for an 89-qubit ring at level 2 / 3 | 3.9, 7.4 |
-| `general-lite-v1` panel | 38 scored input groups, 133 scored cases, 14 guard inputs, 14 frozen targets (11 scored); every input from `test/benchmarks/` | 3.7.1 |
-| `general-lite-v1` cost | ≈87 CPU-minutes of quality compiles per revision (×2 with the routing replay, plus ≈30 for C1-lite), so ≈3.5 CPU-hours for a candidate once the baseline is cached; < 3 exclusive hours of cost measurement per decision; full grid: tens of CPU-hours and 150–200 exclusive hours | 3.7.1, 3.9 |
-| `general-lite-v1` standard error | ≈0.2% on the 100-seed block (planning estimate; inputs, not seeds, are the binding constraint) | 3.7.1 |
-| Seed-blind inputs in the suite | Path- and ring-shaped circuits are deterministic at levels 1–3 (VF2 embeds them); `time_qft_16` cancels to `D2` = 0 at levels 2–3 | 3.7.1 |
+| `confirm-profile` panel | 38 scored input groups, 133 scored cases, 14 guard inputs, 14 frozen targets (11 scored); every input from `test/benchmarks/` | 3.7 |
+| `confirm-profile` cost | ≈87 CPU-minutes of quality compiles per revision (×2 with the routing replay, plus ≈30 for C1-lite), so ≈3.5 CPU-hours for a candidate once the baseline is cached; < 3 exclusive hours of cost measurement per decision | 3.7, 3.9 |
+| `confirm-profile` standard error | ≈0.2% on the 100-seed block (planning estimate; inputs, not seeds, are the binding constraint) | 3.7 |
+| Seed-blind inputs in the suite | Path- and ring-shaped circuits are deterministic at levels 1–3 (VF2 embeds them); `time_qft_16` cancels to `D2` = 0 at levels 2–3 | 3.7 |
 
 ## 1. Scope, claims and vocabulary
 
@@ -164,45 +160,39 @@ checks (section 5.5) that can block acceptance but never earn it.
 construction and parsing speed, fault-tolerant (Clifford+T) pipelines, approximate
 synthesis as an objective.
 
-**What a verdict means.** A focused `PASS` means *focused-panel native two-qubit depth
+**What a verdict means.** An iterations `PASS` means *iterations-panel native two-qubit depth
 improved at level 2 on the declared target, within the stated count, time and correctness
-limits*. A general-lite `PASS` means *native two-qubit depth improved across the eight
+limits*. A confirm `PASS` means *native two-qubit depth improved across the eight
 declared workload families, levels 0–3, heavy-hex and grid-class targets and the `cx` and
 `cz` bases, on the fixed public panel of Qiskit's in-tree benchmark circuits, within the
-stated count, time, memory and correctness limits* (3.7.1). A general `PASS` means
-*native two-qubit depth improved across the declared static-circuit families, sizes,
-targets and levels, within the stated count, time and memory limits*, on the full grid
-of 3.7.2. None of them means every circuit improves, hardware runs faster, or unseen
-workload families improve. `NO_IMPROVEMENT` means improvement was not demonstrated under
+stated count, time, memory and correctness limits* (3.7). Neither means every circuit
+improves, hardware runs faster, or unseen workload families improve. `NO_IMPROVEMENT` means improvement was not demonstrated under
 this policy, not that the revisions are equivalent.
 
-**Why three profiles, and how they are meant to be used.** Seeds and inputs answer
+**Why two profiles, and how they are meant to be used.** Seeds and inputs answer
 different questions. A hundred seeds of three circuits are still three circuits (6.6):
 more seeds shrink the search noise on those inputs and say nothing about other circuits,
-sizes, topologies or levels. The focused profile is the iteration loop — about ten
-CPU-minutes per revision, level 2 only, a panel-specific claim. The full general grid
-(3.7.2) is the complete claim, but at tens of CPU-hours of quality compiles and 150–200
-exclusive hours of timing per revision it cannot be iterated against, and it needs about
-72 curated input groups that do not exist yet. The general-lite profile (3.7.1) sits
-between them: every family, level and topology class the in-tree suite can supply, at
-about ninety CPU-minutes per revision, with the gaps in its coverage declared case by
-case. A `PASS` names its profile.
+sizes, topologies or levels. The iterations profile is the iteration loop — about ten
+CPU-minutes per revision, level 2 only, a panel-specific claim. The confirm profile
+(3.7) is the check: every family, level and topology class the in-tree suite can
+supply, at about ninety CPU-minutes per revision, with the gaps in its coverage declared
+case by case. A `PASS` names its profile.
 
 The profiles are also the harness's only protection against selection bias. Every
 comparison uses the same fixed seed block and the same frozen panel, so a candidate that
 is edited, compared, edited again and compared again on one profile is being selected on
 that profile's seeds and circuits, and after enough rounds a neutral change can look like
-a gain there by luck (4.10). The intended workflow is therefore: **iterate on the focused
-profile; when a change looks good, run the general-lite profile once as the check.** Its
-panel is 38 input groups of which the focused loop contained three, so the selection
+a gain there by luck (4.10). The intended workflow is therefore: **iterate on the iterations
+profile; when a change looks good, run the confirm profile once as the check.** Its
+panel is 38 input groups of which the iteration loop contained three, so the selection
 bias does not carry over to the rest. Two rules keep that sound. The check profile must be
 mostly circuits the loop profile does not contain — true of the profiles defined here,
 and to be kept true when they are revised. And **the check is not the loop**: a
-candidate that fails the lite run goes back to the focused loop, not to another round
-of edits judged on the lite panel. The report prints how many decisions the results root
+candidate that fails the confirm run goes back to the iteration loop, not to another round
+of edits judged on the confirm panel. The report prints how many decisions the results root
 already holds for the manifest, so that drift is at least visible. No profile inside one
 run compares a candidate on seeds or circuits it has not seen before; that is what the
-next profile up is for.
+confirm profile is for.
 
 **One reference.** Every test — the improvement test, every quality guard and every cost
 guard — compares the evolved folder with the baseline folder given on the command line.
@@ -224,7 +214,7 @@ regression that no single comparison flagged.
 | Case | One circuit × one target × one compile configuration, including the optimization level |
 | Input group | All cases derived from the same underlying circuit instance (its target, basis, level and parameter variants). The unit of independence for the bootstrap |
 | Panel | A set of cases evaluated together: scored, guard, canary, timing, memory |
-| Profile | A versioned bundle of manifest (cases, weights, roles) and policy (thresholds): `focused-v1`, `general-lite-v1`, `general-v1`. The one choice the user makes per run |
+| Profile | A versioned bundle of manifest (cases, weights, roles) and policy (thresholds): `iterations-profile`, `confirm-profile`. The one choice the user makes per run |
 | Transpiler seed | The non-negative integer passed as `seed_transpiler` for one compile of one case by one revision: one seed, one compile. The replication dimension of every quality panel (section 6); never a fixture-generation seed, since inputs are frozen files |
 | Seed block | 100 consecutive transpiler seeds with one declared purpose: `B0`, the comparison block every decision uses; `KB1`, `KB2`, the baseline-only calibration blocks (section 6.3) |
 | Objective / guard / canary | The quantity that must improve / a quantity that must not regress / a case with a known constant outcome whose change demands an explanation |
@@ -306,9 +296,8 @@ qiskit-transpile-bench/
     schedule.py               # C5: timing validity
     replay.py                 # C6: routing replay (pure Python)
     clifford_scale.py         # C7: full-width tableau comparison
-  profiles/focused-v1/        # manifest.json, policy.json, exclusions.json
-  profiles/general-lite-v1/   # the in-tree-benchmark general profile (3.7.1)
-  profiles/general-v1/        # the full grid (3.7.2), populated in M5
+  profiles/iterations-profile/ # manifest.json, policy.json, exclusions.json
+  profiles/confirm-profile/   # the in-tree-benchmark check profile (3.7)
   fixtures/circuits/          # *.ops.jsonl.gz canonical inputs (+ Clifford variants)
   fixtures/targets/           # *.target.json frozen targets
   fixtures/PROVENANCE.md      # origin, license, generator script and seed of every fixture
@@ -496,7 +485,7 @@ synthesis) and `qubits_initially_zero=True` (Qiskit's default contract, the one 
 Semantic oracles declare their own contract where they need the stronger all-input one
 (section 5.1).
 
-### 3.2. The focused target
+### 3.2. The primary target
 
 `heavy_hex_d9` is the heavy-hexagon lattice of code distance 9 (what
 `CouplingMap.from_heavy_hex(9)` constructs): qubits sit on the vertices and edges of a
@@ -562,7 +551,7 @@ depth (section 6.2): there is headroom for a depth-aware change, and a single se
 show it. And one seed is unreliable: a single-seed `ln D2` comparison has a standard
 deviation of about 6–12%.
 
-### 3.4. Guards: other bases, and the routing guard circuits of the lite profile
+### 3.4. Guards: other bases, and the routing guard circuits of the confirm profile
 
 **Other native bases.** The three circuits also run on `heavy_hex_d9_cx` and
 `heavy_hex_d9_ecr` with the same seeds. These cases guard; they do not enlarge the score's
@@ -571,12 +560,12 @@ all three circuits, and `cx` was identical for Heisenberg, within 1% for QAOA an
 2% for QFT. When counting independent noisy guards, identical variants count once.
 
 **Routing guard circuits.** The circuits below are per-case guards or scored cases of
-`general-lite-v1` (3.7.1), not of the focused profile: the focused profile is the fast
+`confirm-profile` (3.7), not of the iterations profile: the iterations profile is the fast
 loop, and `hwb12` alone would double its cost. As guards they are compared per case
-against the baseline and need not improve. In the lite manifest they run at levels 0–3
+against the baseline and need not improve. In the confirm manifest they run at levels 0–3
 like every other case, except `hwb12`, which runs at level 2 only; circuits without a
 fixture-fixed target run on the primary `cz` target (a budget decision, listed in
-section 12). Their baseline facts, all at level 2, are collected here because 3.7.1
+section 12). Their baseline facts, all at level 2, are collected here because 3.7
 refers to them.
 
 | Case | What it is | Baseline at level 2 | Seed-sensitive? |
@@ -621,7 +610,7 @@ gains) outside the scored cases.
   baseline that has drifted from itself.
 - **Baseline miss.** A reference record fails: the environment, build or fixture changed,
   the reference is invalid and the verdict is `INCONCLUSIVE` (8.4).
-- **Evolved miss.** Any departure in either direction makes FA4 (LA4 in the lite
+- **Evolved miss.** Any departure in either direction makes IA4 (CA4 in the confirm
   profile) `unresolved`, so the
   verdict is `INCONCLUSIVE` — neither `PASS` nor `CONSTRAINT_VIOLATION`, because the change
   is unexplained rather than shown to be wrong. A value below the constant is as suspicious
@@ -639,8 +628,8 @@ gains) outside the scored cases.
 The 89-qubit version of the ring is *not* a canary. The heavy-hex graph is bipartite, so an
 odd ring cannot embed: `VF2Layout` exhausts its call budget without a solution (4.9 of the
 5.0 s compile at level 2; 33 s at level 3) and SABRE then gives seed-dependent results
-(`D2` 1,367–1,464 over seeds 0–2 at level 2). It belongs to the general profiles' ansatz
-family, where `general-lite-v1` scores it at levels 0–2 and guards level 3 (3.7.1).
+(`D2` 1,367–1,464 over seeds 0–2 at level 2). It belongs to the confirm profile's ansatz
+family, where it is scored at levels 0–2 and guarded at level 3 (3.7).
 
 ### 3.6. Timing panel (19 cases)
 
@@ -673,21 +662,49 @@ Two companions sit beside the panel:
   assembly or target handling, or is unknown. The `timing_e2e` cases contain construction
   time only for small targets.
 
-### 3.7. General profiles
+### 3.7. The confirm profile
 
-Two general profiles share the acceptance rules of 8.3 and the weight, summary and guard
-machinery of section 4. **`general-lite-v1`** (3.7.1) is built entirely from the circuits,
-targets and configurations that already exist in Qiskit's in-tree benchmark suite,
-`test/benchmarks/` at the baseline commit; it is the general profile that runs in practice.
-**`general-v1`** (3.7.2) is the fully populated grid — eight families × three size bands ×
-four topology classes × three bases × four levels, at least three independent input
-groups per family/size cell — which needs about 72 curated input groups and costs tens
-of CPU-hours of quality compiles and 150–200 exclusive machine-hours of timing per
-revision (3.9). It remains the specification of the complete claim and is deferred to
-M5. The lite manifest is a proper subset of the full grid's structure with declared gaps,
-so nothing in it is redesigned when the full grid arrives.
+**`confirm-profile`** is the broad profile of the workflow of section 1: the check that
+runs once when a change looks good on the iterations profile. It is judged by the
+acceptance rules of 8.3 with the weight, summary and guard machinery of section 4, and it
+is built entirely from the circuits, targets and configurations that already exist in Qiskit's
+in-tree benchmark suite, `test/benchmarks/` at the baseline commit. This section first
+defines the workload families and the coverage dimensions every case declares, then the
+manifest itself: inputs, targets, roles, weights, seeds, cost panels, correctness, the
+claim a `PASS` makes and the budget.
 
-#### 3.7.1. `general-lite-v1`: the general profile built from the in-tree benchmarks
+**Families.** All eight must contribute scored cases.
+
+| ID | Family | Instances vary by | Why it is included |
+| --- | --- | --- | --- |
+| G1 | Quantum Fourier transform | Width; frozen conventions (final swaps, exact angles) | Structured, nonlocal interactions |
+| G2 | Hamiltonian simulation | Lattice shape and size, model, Trotter depth, generic numeric angles | Lattice interactions, repeated evolution layers |
+| G3 | QAOA | Graph instance and structure, width, repetitions | Graph-dependent interactions |
+| G4 | Quantum volume | Width, depth, independently generated **frozen matrices** | Random dense interactions, matrix-gate synthesis |
+| G5 | Reversible logic | Different Boolean and arithmetic circuits, including new larger adders and multipliers | Synthesis and simplification of classical structure |
+| G6 | Bernstein–Vazirani patterns | Width, secret pattern, simplification-sensitive variants | Star-shaped interaction, cancellation opportunities |
+| G7 | Variational ansatz circuits | Width, entanglement pattern, repetitions; numeric and symbolic variants of one instance stay in one group | Repeated entanglers, parameter handling |
+| G8 | Routing challenges | Independent QUEKO-style instances; the fixture fixes its target, declared as topology class `fixture-fixed` | Routing structures with a known reference |
+
+G8's scored cases use the explicit SABRE layout and routing methods. With default methods
+VF2 embeds a QUEKO instance perfectly (3.4), the result is seed-blind, and the family could
+never improve for a layout or routing candidate — which would distort the breadth rule.
+The default-method variants stay as deterministic guards.
+
+**Coverage dimensions.** Every case declares the dimensions below. The manifest generator
+(M3-3) checks the panel against the standard in the right-hand column and lists every
+cell the panel does not fill, with the reason; the gaps of this manifest are declared
+under "Coverage" below. A fully covered panel is the standard, not a profile: no such
+panel exists, and building one is not planned.
+
+| Dimension | Standard |
+| --- | --- |
+| Size band | Small 4–16, medium 17–64, large 65–100 logical qubits, wherever the family supports the band |
+| Independent inputs | At least three input groups per supported family/size cell. New transpiler seeds, wire relabelings and basis/level variants are not new inputs |
+| Topology | Heavy-hex, line, 2D grid, plus an all-to-all control; each family on at least two sparse classes unless fixture-fixed |
+| Basis and direction | `cx`, `cz`, `ecr`; one supported asymmetric directed target |
+| Occupancy | Both fully occupied targets and targets with spare qubits |
+| Level | 0, 1, 2 and 3 for every supported input/target pair |
 
 **Principle.** Every input is an existing fixture or constructor of the upstream suite and
 every target is one the suite already builds; no new circuit generator and no new target
@@ -698,7 +715,7 @@ upstream circuit constructor paired with an upstream target it is not benchmarke
 heavy-hex targets, and the DTC fixture on heavy-hex) — this is what gives G2, G3 and G5
 more than one input on a sparse target; **C**, an upstream constructor at a width it is not
 benchmarked at (`bv_all_ones` at 16 and 50 qubits). Where upstream runs a configuration at
-one level, the lite manifest runs it at levels 0–3 like every other case. Every input and
+one level, the confirm manifest runs it at levels 0–3 like every other case. Every input and
 target is exported once, at curation time, as frozen canonical data with its hash (3.8);
 the upstream code is provenance, never a runtime source.
 
@@ -706,9 +723,9 @@ the upstream code is provenance, never a runtime source.
 environment (2.6) at levels 0–3 with transpiler seeds 0–2: 692 compiles on an Apple M1
 Max, so the absolute times are comparable with 3.9's within about 30%. The script, its
 raw records and the panel generator that computes every weight, count and cost quoted
-below are `design/probes/general_lite_probe.py`, `general_lite_probe.jsonl` and
-`general_lite_panel.py`; the generator also writes the draft manifest
-`design/general-lite-v1.draft-manifest.json` (203 cases with roles, provenance, target
+below are `design/probes/confirm_probe.py`, `confirm_probe.jsonl` and
+`confirm_panel.py`; the generator also writes the draft manifest
+`design/confirm-profile.draft-manifest.json` (203 cases with roles, provenance, target
 recipes, weights and the probe's baseline numbers — a proposal until the roles are
 confirmed from baseline data, 4.5; it predates this revision of the plan and still
 carries a tuning/validation split field and per-split weights, which the generator must
@@ -731,7 +748,7 @@ drop when the manifest is regenerated). Three findings shaped the manifest:
   that an odd ring exhausts (3.5); it is scored at levels 0–2 and is a 10-seed per-case
   guard at level 3.
 
-**Targets.** Beyond the three frozen heavy-hex targets of 3.2, the lite manifest freezes
+**Targets.** Beyond the three frozen heavy-hex targets of 3.2, the confirm manifest freezes
 the targets the upstream suite builds: `mumbai_27` and `melbourne_14`
 (`GenericBackendV2(seed=0)` over the 27- and 14-qubit legacy maps of `legacy_cmaps.py`;
 Melbourne's map is directed, so it is the profile's asymmetric target); `mumbai_27_loose`,
@@ -749,8 +766,8 @@ The suite has no `line` target; the class is declared unsupported.
 run). The size band counts the logical qubits that carry at least one gate — three
 RevLib files and the Tokyo QUEKO instance declare wider registers than they use. `D2` is
 the range over seeds 0–2 at the level shown; compile time is one serial compile. The
-three focused circuits are marked ◆: they are the only inputs the focused loop and this
-panel share, and the report prints the lite score with them removed (see "Seeds" below).
+iterations profile's three circuits are marked ◆: they are the only inputs the iteration loop and this
+panel share, and the report prints the confirm score with them removed (see "Seeds" below).
 
 | Input | Family | Band | Qubits / `cx` in input | Target | Provenance · source | Levels and roles | Baseline `D2`, seeds 0–2 | Compile s, L2 / L3 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -793,7 +810,7 @@ panel share, and the report prints the lite score with them removed (see "Seeds"
 | `queko_bntf_54` (sabre) | G8 | medium | 54 / 270 | `sycamore_54` | A · `queko.py` | scored 0–3 | 111–125 (L2) | 0.10 / 0.12 |
 | `queko_bigd_20` (sabre) | G8 | small | 9 (of 20) / 45 | `tokyo_20` | A · `queko.py` | scored 0–3 | 20–21 (L2) | 0.01 / 0.01 |
 
-**Guards, canaries and the all-to-all control** (14 inputs). The focused basis guards of
+**Guards, canaries and the all-to-all control** (14 inputs). The basis guards of
 3.4 — the three 100-qubit circuits on `heavy_hex_d9_cx` and `heavy_hex_d9_ecr` at level 2
 — are retained unchanged, as are the canary constants of 3.5.
 
@@ -831,70 +848,80 @@ with measurements, on the grids `ripple_adder.py` computes for them. The `revlib
 are RevLib reversible-logic benchmarks (`mcx_kg24`, `multiplier_h18` and
 `adder_modular_v17` are the synthesis-library constructions of `utils.py`). `ring_random_n`
 is `random_circuit_hex.make_circuit_ring(n, 2n, seed=0)`. The QUEKO instances appear
-twice: with explicit SABRE layout and routing (scored; 3.7.2 explains why) and with
+twice: with explicit SABRE layout and routing (scored; see the G8 rule above) and with
 default methods (deterministic guards, the same numbers as 3.4).
 
-**Coverage against the `general-v1` grid.**
+**Coverage.** Against the standard above:
 
-| Requirement (3.7.2) | `general-lite-v1` |
+| Standard | `confirm-profile` |
 | --- | --- |
 | Eight families | Yes: every family has at least three input groups |
 | Small, medium and large bands where supported | Small and medium for every family that supports them; large only from the 100-qubit inputs (G1, G2, G3, G6, G7). G4-large, G5-large and G8-large are unsupported: the suite's 115-qubit QV and QFT inputs exist only as `SabreSwap`-only pass benchmarks and `hwb12` is too slow |
 | At least three input groups per family/size cell | **Partly**: one to six per cell; G6 has one per cell, and not every cell with three has identical configuration support. The paired cluster bootstrap is report-only (4.7) |
 | Heavy-hex, line, grid and an all-to-all control; each family on two sparse classes | Heavy-hex and grid; all-to-all as a guard-only control; `line` unsupported. G2, G3 and G6 are on heavy-hex only |
-| `cx`, `cz`, `ecr`; one asymmetric target | `cx` on ten targets and `cz` on heavy-hex distance 9 are scored; `ecr` and the other `cx` variant of the heavy-hex target through the focused basis guards; Melbourne is directed |
+| `cx`, `cz`, `ecr`; one asymmetric target | `cx` on ten targets and `cz` on heavy-hex distance 9 are scored; `ecr` and the other `cx` variant of the heavy-hex target through the basis guards of 3.4; Melbourne is directed |
 | Fully occupied and spare-qubit targets | Fully occupied: `qv_n27_d27` (27 of 27), `qv_n14_d14`, `qft_cp_n14` and `ring_random_n14` (14 of 14), the 53- and 54-qubit QUEKO instances; spare: everything on heavy-hex distance 9, the 16-qubit inputs on Mumbai and `queko_bigd_20` (9 of 20) |
 | Levels 0–3 for every supported input/target | Yes wherever the input is seed-sensitive. The path- and ring-shaped inputs are guards at 1–3 and `su2_circular_n89` at 3, so G7 has no scored level-3 case |
 
-**Weights.** The rule of 3.7.2 with one change of order: family → **level** → size band →
-topology → basis → input group → declared variant. Level sits directly under family
-because level support differs between inputs in this manifest: with 3.7.2's order an input
+**Weights.** Give each family 1/8. Inside a family divide equally among the children
+present in the frozen manifest, in this order: **level** → size band → topology → basis →
+input group → declared variant. Level sits directly under family because level support
+differs between inputs in this manifest: were level placed below the size band, an input
 scored at level 0 only would take its whole family/size cell (`trotter_chain_n32` alone
 would carry a full G2 medium cell), whereas with level first every level a family
 supports carries an equal share of the family and the level-0-only inputs share level 0
-with the others. Where every input supports all four levels the two orders agree, so
-`general-v1` is unaffected. Two consequences, stated rather than hidden. G7 has three
+with the others. Adding many inputs to one family cannot outweigh the other seven, and
+unequal instance counts never change a family's weight. Two consequences of the level
+rule, stated rather than hidden. G7 has three
 scored levels, and at levels 1 and 2 `su2_circular_n89` is its only scored input, so it
 carries 1/24 at each of those levels and 1/96 at level 0 — 9.4% of the score on one
 circuit, the price of the one seed-sensitive ansatz in the suite. Likewise
 `square_heisenberg_n100` is G2's only scored input at levels 1–3 (the chain and DTC
 inputs are level-0-only), so it carries 1/32 at each of those levels and 1/192 at level
-0 — 9.9%. With QFT and QAOA at 4.2% each, the three focused circuits together carry
-18.2% of the lite score, which is why the leave-focused-out score below is printed.
+0 — 9.9%. With QFT and QAOA at 4.2% each, the iterations profile's three circuits together carry
+18.2% of the confirm score, which is why the leave-iterations-out score below is printed.
 Example weights:
 `qft_n100` at level 2 = 1/8 × 1/4 × 1/3 = 1/96 ≈ 0.0104 (three G1 size bands, one large
 input); `mcx_kg24_n16` at level 2 = 1/8 × 1/4 × 1/2 × 1/6 = 1/384 ≈ 0.0026 (two G5
 bands, six small inputs, all on `mumbai_27`); `qv_n50_d50` at level 2 = 1/8 × 1/4 × 1/2 ×
 1/2 = 1/128 (two G4 bands; it is the only `cz` input of the heavy-hex medium cell, whose
 `cx` half is shared by `qv_n27_d27` and `qv_n50_d20`). All 133 weights are persisted,
-sum to one, and the harness test suite reproduces them (section 11).
+sum to one, and the harness test suite reproduces them (section 11). Two rules sit
+beside the tree:
+
+- The all-to-all control is **guard-only** unless the manifest declares it scored: it is
+  excluded from every score and summary except its own topology summary, which uses the
+  same division rule; its per-case caps still apply.
+- Zero-baseline cases sit outside the logarithmic score. Their roles and the remaining
+  weights are frozen before tuning. A family with no positive scored case makes the
+  profile incomplete until it is redesigned; its weight is never silently redistributed.
 
 **Seeds.** Every scored case uses the whole 100-seed comparison block (6.3); the smaller
 counts belong to the guard roles named in the tables. The panel is finite and public,
 and there is no held-back part of it: a candidate compared on it repeatedly, with edits
 in between, is being tuned on it. The intended use is the workflow of section 1 — the
-focused profile is the loop, this profile is the check — and two report-only numbers
+iterations profile is the loop, this profile is the check — and two report-only numbers
 make drift visible: the number of decisions the results root holds for this manifest,
-and the lite score recomputed over the 35 input groups the focused profile does not
+and the confirm score recomputed over the 35 input groups the iterations profile does not
 contain (the ◆ inputs, 18.2% of the weight, removed and the rest renormalized). A
-candidate whose gain lives mostly in those three inputs has improved the focused panel,
+candidate whose gain lives mostly in those three inputs has improved the iterations panel,
 not the suite. That is the
-lite profile's limit: it detects a gain that does not carry beyond the loop's circuits;
+confirm profile's limit: it detects a gain that does not carry beyond the loop's circuits;
 it does not estimate improvement on circuits outside the suite.
 
-**Cost panels.** The focused timing panel T1–T19 (3.6) is retained unchanged. The lite
+**Cost panels.** The timing panel T1–T19 of 3.6 is retained unchanged. The confirm
 timing panel adds `timing_e2e` cases for the heaviest scored input of each family at
 levels 0–3: `qft_n100`, `square_heisenberg_n100`, `qaoa_ba_n100_3reps`, `qv_n50_d50`,
 `multiplier_h18_n32`, `bv_all_ones_n100`, `queko_bss_53` (sabre) and `su2_circular_n89`
 at levels 0–2 only (its level 3 would spend an hour of the panel on one 40 s compile) —
 31 cases, seed 0, equal weights within the panel. The same eight inputs at level 2 form the
 multi-seed companion when 3.6 requires it, and, with `hwb12` at level 2, the memory panel
-(five fresh processes each). Guards: one `ln_panel` guard for the lite timing panel and
-one for each focused panel, the per-case caps and the memory guard of 4.8. Family timing
+(five fresh processes each). Guards: one `ln_panel` guard for the confirm timing panel and
+one for each of the iterations profile's cost panels, the per-case caps and the memory guard of 4.8. Family timing
 summaries are reported, not guarded (4.9).
 
 **Correctness.** C0 and the routing replay C6 run on every scored output at every level;
-C7's Clifford variants remain those of the three 100-qubit circuits. The lite panel adds
+C7's Clifford variants remain those of the three 100-qubit circuits. The confirm panel adds
 **C1-lite** (5.3): for every scored output whose active physical qubits number at most
 25 — the small-band inputs and `ripple_adder_10`, 18 of the 38 scored input groups (at
 the baseline their outputs use 5 to 25 physical qubits over levels 0–3 and seeds 0–2) —
@@ -907,11 +934,11 @@ unchanged for the medium and large cases: a candidate that changes the optimizat
 stage still tops out at `INCONCLUSIVE`, but the review workflow (8.6) now has exact
 evidence on half the panel.
 
-**Claim.** A `general-lite-v1` `PASS` means *native two-qubit depth improved across the
+**Claim.** A `confirm-profile` `PASS` means *native two-qubit depth improved across the
 eight declared workload families, levels 0–3, heavy-hex and grid-class targets and the
 `cx` and `cz` bases (`ecr` guarded), on the fixed public panel of Qiskit's in-tree
 benchmark circuits, within the count, time, memory and correctness limits*. It says
-nothing about circuits outside that panel; that claim needs `general-v1`.
+nothing about circuits outside that panel.
 
 **Budget (measured at the baseline, serial).** Quality: 15,000 compiles and about 87
 CPU-minutes per revision — scored cases 70, guards 17 of which `hwb12` is 16.5 — before
@@ -919,84 +946,22 @@ the routing replay, which roughly doubles it, and C1-lite, about 30 CPU-minutes 
 about 3.5 CPU-hours per revision, or 35 wall-minutes on six serial workers. The
 baseline's observations are cached (9.3), so after the first run against a baseline a
 decision costs one revision's worth of quality work. Cost measurement: about 1.3
-exclusive hours for the lite timing panel, 1 hour for T1–T19, 15 minutes for memory, and
-the companion when required — under 3 exclusive hours per decision, against 150–200 for
-the full grid.
+exclusive hours for the confirm timing panel, 1 hour for T1–T19, 15 minutes for memory, and
+the companion when required — under 3 exclusive hours per decision.
 
 **Statistical power (planning numbers, 4.10).** With the measured per-case `sd(ln D2)`
 and weights of this order, `sd(delta_s)` is about 2% (the probe's two halves of the
 panel gave 1.9% and 2.1%, and the whole panel spreads the weight further), so `SE` on
-the 100-seed block is about 0.2% — three times smaller than the focused profile's,
+the 100-seed block is about 0.2% — three times smaller than the iterations profile's,
 because the score averages many roughly independent cases. Seeds are therefore not the
 binding constraint; the number of independent inputs is, which is why the bootstrap is
 reported.
 
-**What `general-lite-v2` should add first**, in the order of the gaps above: a
+**What the next version of the confirm manifest should add first**, in the order of the gaps above: a
 2D-lattice Hamiltonian-simulation input and a non-embeddable ansatz at levels 1–3;
 `line` targets (`CouplingMap.from_line`, trivial to build but absent from the suite); a
 second G6 and G8 instance per cell; large quantum-volume and reversible inputs that
 compile in seconds rather than minutes. Each is a new manifest version, never an edit.
-
-#### 3.7.2. `general-v1`: the fully populated grid (deferred to M5)
-
-**Families.** All eight must contribute scored cases.
-
-| ID | Family | Instances vary by | Why it is included |
-| --- | --- | --- | --- |
-| G1 | Quantum Fourier transform | Width; frozen conventions (final swaps, exact angles) | Structured, nonlocal interactions |
-| G2 | Hamiltonian simulation | Lattice shape and size, model, Trotter depth, generic numeric angles | Lattice interactions, repeated evolution layers |
-| G3 | QAOA | Graph instance and structure, width, repetitions | Graph-dependent interactions |
-| G4 | Quantum volume | Width, depth, independently generated **frozen matrices** | Random dense interactions, matrix-gate synthesis |
-| G5 | Reversible logic | Different Boolean and arithmetic circuits, including new larger adders and multipliers | Synthesis and simplification of classical structure |
-| G6 | Bernstein–Vazirani patterns | Width, secret pattern, simplification-sensitive variants | Star-shaped interaction, cancellation opportunities |
-| G7 | Variational ansatz circuits | Width, entanglement pattern, repetitions; numeric and symbolic variants of one instance stay in one group | Repeated entanglers, parameter handling |
-| G8 | Routing challenges | Independent QUEKO-style instances; the fixture fixes its target, declared as topology class `fixture-fixed` | Routing structures with a known reference |
-
-G8's scored cases use the explicit SABRE layout and routing methods. With default methods
-VF2 embeds a QUEKO instance perfectly (3.4), the result is seed-blind, and the family could
-never improve for a layout or routing candidate — which would distort the breadth rule.
-The default-method variants stay as deterministic guards.
-
-**Coverage grid.**
-
-| Dimension | Requirement |
-| --- | --- |
-| Size band | Small 4–16, medium 17–64, large 65–100 logical qubits, wherever the family supports the band |
-| Independent inputs | At least three input groups per supported family/size cell. New transpiler seeds, wire relabelings and basis/level variants are not new inputs. A fully supported grid needs 8 × 3 × 3 = 72 groups |
-| Topology | Heavy-hex, line, 2D grid, plus an all-to-all control; each family on at least two sparse classes unless fixture-fixed |
-| Basis and direction | `cx`, `cz`, `ecr`; one supported asymmetric directed target |
-| Occupancy | Both fully occupied targets and targets with spare qubits |
-| Level | 0, 1, 2 and 3 for every supported input/target pair |
-
-Proposed target catalog, to finalize in M5: heavy-hex distances 3, 5, 7, 9 (19, 57, 115,
-193 qubits); lines of 16, 64, 100; grids 4×4, 8×8, 10×10 and one oversized 12×12;
-all-to-all controls; a one-direction-per-edge variant of heavy-hex distance 5.
-
-**Independence from the loop.** The grid holds no held-back part and no reserve: like
-every profile it is one panel, compared in full on the fixed seed block. Inputs already
-used to guide optimization — the three focused circuits and the lite panel — are members
-of the grid like any others, and near-duplicates are kept in one input group. Its
-independence from the iteration loop comes from its size (72 groups against the lite
-profile's 38 and the focused profile's 3) and from the rule of section 1 that it is run
-as a check, never iterated against. For deterministic families vary width or structure
-to obtain distinct groups.
-
-**Weights.** Give each family 1/8. Inside a family divide equally among the children
-present in the frozen manifest, in this order: size band → topology → basis → level →
-input group → declared variant (the lite profile places level first, 3.7.1; the two
-orders agree whenever every input supports all four levels, as every input in this grid
-must). Persist every `w_c`; they sum to one. Example, fully
-populated grid: `1/8 × 1/3 × 1/3 × 1/3 × 1/4 × 1/3 = 1/2592 ≈ 0.000386` per case, and
-2,592 scored cases. Consequences: adding many QAOA graphs cannot outweigh the
-other seven families; unequal instance counts never change a family's weight.
-
-- The all-to-all control is **guard-only** unless the manifest declares it scored: it is
-  excluded from every score and summary except its own topology summary, which uses the
-  same division rule; its per-case caps still apply.
-- Zero-baseline cases sit outside the logarithmic score. Their roles and the remaining
-  weights are frozen before tuning. A family with no positive scored case makes the
-  profile incomplete until it is redesigned; its weight is never silently redistributed.
-- The same weights serve `D2`, `N2` and the general timing panels.
 
 ### 3.8. Fixture sources and input integrity
 
@@ -1011,11 +976,11 @@ environment, and committed as canonical data with provenance and license retaine
 | Heavy-hex target recipe, the ring ansatz | `test/benchmarks/utility_scale.py` |
 | `single_h`, `cancel_2q`, the 27-qubit coupling map | `test/benchmarks/transpiler_benchmarks.py` |
 | `qv_n14_d14`, `qv_n50_d20`, Melbourne 14-qubit connectivity, the legacy basis and Rochester map | `test/benchmarks/transpiler_levels.py` |
-| `general-lite-v1` additions: `qft16_cancel`, the five `revlib_*` circuits, the Mumbai target | `test/benchmarks/qasm/`: `time_qft_16.qasm`, `depth_4gt10-v1_81.qasm`, `depth_4mod5-v0_19.qasm`, `depth_mod8-10_178.qasm`, `time_cnt3-5_179.qasm`, `time_cnt3-5_180.qasm`; `test/benchmarks/transpiler_qualitative.py` with `legacy_cmaps.MUMBAI_CMAP` |
+| `confirm-profile` additions: `qft16_cancel`, the five `revlib_*` circuits, the Mumbai target | `test/benchmarks/qasm/`: `time_qft_16.qasm`, `depth_4gt10-v1_81.qasm`, `depth_4mod5-v0_19.qasm`, `depth_mod8-10_178.qasm`, `time_cnt3-5_179.qasm`, `time_cnt3-5_180.qasm`; `test/benchmarks/transpiler_qualitative.py` with `legacy_cmaps.MUMBAI_CMAP` |
 | `dtc_n100` | `test/benchmarks/qasm/dtc_100_cx_12345.qasm` (100 repetitions of `utils.dtc_unitary(100, g=0.95, seed=12345)`; used upstream only by `manipulate.py`) |
 | `qft_cp_n8`, `qft_cp_n14`; `ring_random_n8`, `ring_random_n14`; the directed Melbourne map with the legacy basis | `test/benchmarks/qft.py`: `build_model_circuit`; `test/benchmarks/random_circuit_hex.py`: `make_circuit_ring`; `legacy_cmaps.MELBOURNE_CMAP` |
 | `qft_full_n32/n64`, `trotter_chain_n16/n32`, `qaoa_complete_n8/n16/n32`, `mcx_kg24_n16`, `multiplier_h18_n16/n32`, `adder_modular_v17_n32`, the all-to-all Clifford + `rz` target | `test/benchmarks/utils.py`: `create_ft_circuit` and its constructors (`qft_circuit`, `trotter_circuit`, `qaoa_circuit`, `mcx_circuit`, `multiplier_circuit`, `modular_adder_circuit`); `test/benchmarks/transpiler_ft.py` for the target |
-| `qv_n27_d27`, `qv_n14_d14_s10`, the loose Mumbai configuration | `test/benchmarks/quantum_volume.py` (matrices frozen with seed 10; see 3.7.1) |
+| `qv_n27_d27`, `qv_n14_d14_s10`, the loose Mumbai configuration | `test/benchmarks/quantum_volume.py` (matrices frozen with seed 10; see 3.7) |
 | `ripple_adder_10`, `ripple_adder_20` and their 5×5 and 7×7 grids | `test/benchmarks/ripple_adder.py`, `utils.build_ripple_adder_circuit` |
 | `bv_all_ones_n16`, `bv_all_ones_n50` | `utils.bv_all_ones` at widths the suite does not benchmark (provenance grade C) |
 
@@ -1041,14 +1006,12 @@ used.
 | Item | Indicative cost |
 | --- | --- |
 | One level-2 compile | QFT 1.0 s, QAOA 0.85 s, Heisenberg 0.2 s; level 0 is 6–28× faster, level 3 about 1.3–1.4× slower |
-| Focused quality panel, scored + basis guards (9 cases × 100 seeds) | ≈10 CPU-minutes per revision; the routing replay's two truncated compiles per seed roughly double it. A decision compiles the candidate only once the baseline is cached |
+| Iterations quality panel, scored + basis guards (9 cases × 100 seeds) | ≈10 CPU-minutes per revision; the routing replay's two truncated compiles per seed roughly double it. A decision compiles the candidate only once the baseline is cached |
 | Timing panel (19 cases × 10 rounds × 3 arms) | ≈1 hour on an exclusive machine; the multi-seed companion (9 cases × 20 seeds × 3 rounds × 3 arms), when required, about as much again |
 | Once per baseline, manifest, policy and machine | Timing and memory A/A calibration ≈2 h exclusive; false-rejection calibration = two seed blocks of baseline quality runs |
-| `general-lite-v1`, quality (measured, 3.7.1) | 15,000 compiles ≈ 87 CPU-minutes per revision: scored cases 70, guards 17 (`hwb12` 16.5); the routing replay roughly doubles it, C1-lite adds ≈30. About 35 wall-minutes per revision on six serial workers |
-| `general-lite-v1`, one decision | ≈3.5 CPU-hours of quality work for the candidate with the baseline cached; twice that the first time a baseline is used |
-| `general-lite-v1`, cost panels | Lite timing panel (31 `timing_e2e` cases) ≈ 1.3 exclusive hours, plus T1–T19 ≈ 1 hour, memory (9 cases × 5 processes × 3 arms) ≈ 15 minutes; the companion, when required, ≈ 20 minutes |
-| General profile, fully populated, quality | 2,592 cases × 100 seeds = 259,200 compiles per revision — tens of CPU-hours, before level-3 VF2 costs |
-| General profile, fully populated, timing | 2,592 cases × 2 modes × 10 rounds × 3 arms ≈ 155,000 fresh processes — on the order of 150–200 exclusive machine-hours per decision |
+| `confirm-profile`, quality (measured, 3.7) | 15,000 compiles ≈ 87 CPU-minutes per revision: scored cases 70, guards 17 (`hwb12` 16.5); the routing replay roughly doubles it, C1-lite adds ≈30. About 35 wall-minutes per revision on six serial workers |
+| `confirm-profile`, one decision | ≈3.5 CPU-hours of quality work for the candidate with the baseline cached; twice that the first time a baseline is used |
+| `confirm-profile`, cost panels | Confirm timing panel (31 `timing_e2e` cases) ≈ 1.3 exclusive hours, plus T1–T19 ≈ 1 hour, memory (9 cases × 5 processes × 3 arms) ≈ 15 minutes; the companion, when required, ≈ 20 minutes |
 
 Quality observations are deterministic for a fixed build, configuration and seed, so they
 may run concurrently in separate serially configured workers — never alongside a cost
@@ -1056,13 +1019,11 @@ measurement. Calibration records are stored in the results root and reused by an
 with the same baseline build, manifest, policy and machine, so a new run does not repeat
 them.
 
-The fully populated general grid will not run in practice, which is why `general-lite-v1`
-exists (3.7.1): its quality panel is about a hundredth of the grid's and its cost panels
-about a fiftieth, and every claim names the profile it was earned under. The general
-rule stands: profile baseline feasibility before freezing the profile — the lite probe of
-3.7.1 is the worked example — declare a narrower scope (or a smaller per-case seed count,
-as for `hwb12` and the level-3 `su2_circular_n89`) **before** tuning, and never remove an
-expensive or unfavorable case from a finished comparison.
+Every claim names the profile it was earned under. The general rule stands: profile
+baseline feasibility before freezing a profile — the probe of 3.7 is the worked example —
+declare a narrower scope (or a smaller per-case seed count, as for `hwb12` and the
+level-3 `su2_circular_n89`) **before** tuning, and never remove an expensive or
+unfavorable case from a finished comparison.
 
 ## 4. Metrics and formulas in detail
 
@@ -1162,9 +1123,8 @@ alone (−0.4%) would not have. The harness test suite must reproduce these digi
 
 | Rule | Inequality | Reading |
 | --- | --- | --- |
-| Improvement (focused) | `ln(D2_score) + 2·SE < 0` | The score is below 1 by more than two standard errors |
-| Improvement (general) | `ln(D2_score) + 2·SE < ln(0.99)` and `U_instance < ln(0.99)` | At least a 1% practical reduction, against seed noise **and** instance uncertainty (4.7) |
-| Improvement (general-lite) | `ln(D2_score) + 2·SE < ln(0.99)` | The same practical threshold; `U_instance` reported, not tested (4.7) |
+| Improvement (iterations) | `ln(D2_score) + 2·SE < 0` | The score is below 1 by more than two standard errors |
+| Improvement (confirm) | `ln(D2_score) + 2·SE < ln(0.99)` | At least a 1% practical reduction against seed noise; `U_instance` reported, not tested (4.7) |
 | Regression guard | `ln(score) <= 3·SE` | The score is not above 1 by more than three standard errors (the multiplier is 3, not 2, because of guard multiplicity, 4.9) |
 | Per-case quality cap | `case_ratio(c) <= 1.05` | Applied to the seed-aggregated ratio, not single seeds; worst seeds are reported |
 | Per-case cost cap | Breach only if `ratio > 1.10` **and** the absolute increase exceeds the case's noise floor | Tiny timings are not judged by ratios alone |
@@ -1208,11 +1168,11 @@ renormalize their weights to one, and recompute 4.2–4.3. Report each summary's
 next to its score: marginal differences are descriptive, not causal, because supported
 case mixes differ between margins.
 
-### 4.7. Instance uncertainty: paired cluster bootstrap (general profile)
+### 4.7. Instance uncertainty: paired cluster bootstrap (report-only)
 
 `SE` conditions on the chosen circuits: a hundred seeds of one circuit say nothing about
-other circuits. The general profile therefore also estimates the spread across
-independent input groups.
+other circuits. The confirm profile therefore also estimates the spread across
+independent input groups, as a report-only number.
 
 ```text
 d(c, s)   = ln m_evolved(c, s) - ln m_reference(c, s)
@@ -1246,13 +1206,13 @@ predeclared compatible stratum. Guard-only all-to-all cases are excluded. `U_ins
 still an approximate one-sided bound for the declared population; report group counts
 beside it. It supports no inference to omitted families.
 
-In `general-lite-v1` not every family/size stratum has three groups with identical
+In `confirm-profile` not every family/size stratum has three groups with identical
 support (G6 has one group per band; the heavy-hex medium cell of G4 mixes `cz` and `cx`
 inputs), so the bootstrap is **report-only**: strata are whole families (three to ten
 groups each, support equalized by resampling each group's weight share rather than its
 cases), the rescaling factor is applied, and `U_instance` is printed beside the score as
-an indication of instance spread. It is not a decision input there; the lite claim is
-about the fixed panel (3.7.1).
+an indication of instance spread. It is not a decision input; the confirm claim is
+about the fixed panel (3.7).
 
 ### 4.8. Cost: time and memory
 
@@ -1261,7 +1221,7 @@ Cost uses its own estimators; the quality seed estimator is never applied to cos
 ```text
 t(c, r)       = median over rounds k  of  median over timed calls j  of  elapsed(c, r, k, j)
 ln_ratio_t(c) = ln t(c, evolved) - ln t(c, baseline)
-ln_panel      = sum_c u_c * ln_ratio_t(c)       # u_c = 1/|panel| (focused); quality weights (general)
+ln_panel      = sum_c u_c * ln_ratio_t(c)       # u_c = 1/|panel|
 t_ms(c, r)    = mean over companion seeds s  of  median over rounds k  of  elapsed(c, r, s, k)
 rss(c, r)     = median over fresh processes of peak resident set size
 guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
@@ -1287,13 +1247,12 @@ guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
   is why the in-run control arm exists. The double build also tests that two builds of one
   snapshot produce identical quality observations. A calibration expires after 30 days or
   on any change of machine identity.
-- **Guards.** One `ln_panel` guard and the per-case caps for each timing panel and, in
-  the full general profile, each family summary (the lite profile reports family
-  summaries without guarding them, 4.9). The multi-seed companion and the
+- **Guards.** One `ln_panel` guard and the per-case caps for each timing panel; family
+  timing summaries are reported, not guarded (4.9). The multi-seed companion and the
   preset-construction panel are separate panels under the same guards whenever 3.6
   requires them, and the A/A calibration covers every cost panel it will guard. Memory
-  (general profiles only): a frozen panel covering every family and size band including
-  the largest cases — in the lite profile the eight heaviest scored inputs plus `hwb12`
+  (confirm profile only): a frozen panel covering every family, including the largest
+  cases — the eight heaviest scored inputs plus `hwb12`
   at level 2 — 5 fresh processes per case, medians, the same form of guard with equal
   family weights (selected case weights renormalized inside each family). All cost
   comparisons use the baseline. Setup RSS is recorded so the harness's own
@@ -1307,14 +1266,14 @@ guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
 Multiplicity works against a *good* candidate. A one-sided standard-error guard trips on
 some comparisons with no true change — about 2.3% at two standard errors, about 0.13% at
 three — so `k` independent noisy guards reject a neutral candidate with probability about
-`1 − (1 − p)^k`. The focused profile has about 7: suite `D2` and `N2` guards on the `cx`
+`1 − (1 − p)^k`. The iterations profile has about 7: suite `D2` and `N2` guards on the `cx`
 target and on the identical `cz`/`ecr` pair (4), and the timing panels (3, with the
-companion and preset panel). Deterministic cases add none. `general-lite-v1` has about
+companion and preset panel). Deterministic cases add none. `confirm-profile` has about
 45: family and level summaries for `D2` and `N2` (24), overall `N2` (1), thirteen
-per-case standard-error guards, the focused basis guards (4) and the cost panels — which
+per-case standard-error guards, the basis guards of 3.4 (4) and the cost panels — which
 is why its band, topology and basis summaries are reported rather than guarded. At two
 standard errors those 45 guards would reject a neutral candidate about two-thirds of the
-time, assuming independence; at three, about 6% (about 1% for the focused profile). The guard
+time, assuming independence; at three, about 6% (about 1% for the iterations profile). The guard
 multiplier is therefore **3.0**, predeclared, and the calibration below measures the
 real, correlated figure.
 
@@ -1355,12 +1314,12 @@ circuits are the same every run, so `N` compare-edit-compare rounds on one profi
 a neutral change about `1 − 0.977^N` chances of a lucky `PASS` — about a third at
 `N` = 20 — and a candidate *kept because* it passed carries whatever share of its gain
 was luck on those seeds. The harness does not correct for this inside a run; it relies
-on the workflow of section 1: the lite profile's panel holds 35 input groups the focused
-loop never contained, so a gain that was luck on the focused seeds and circuits shows
-up there as `NO_IMPROVEMENT`. Because the lite panel's `SE` is about a third of the
-focused panel's, a real gain that passed the focused test has a good chance there, and
-a lucky one very little. The count of decisions per manifest in the results root is
-printed so that a lite run that has itself become a loop is visible.
+on the workflow of section 1: the confirm profile's panel holds 35 input groups the
+iteration loop never contained, so a gain that was luck on the iterations profile's seeds
+and circuits shows up there as `NO_IMPROVEMENT`. Because the confirm panel's `SE` is
+about a third of the iterations panel's, a real gain that passed the iterations test has a
+good chance there, and a lucky one very little. The count of decisions per manifest in the
+results root is printed so that a confirm run that has itself become a loop is visible.
 
 ### 4.11. Reviewed trades
 
@@ -1459,8 +1418,8 @@ lists "rotations removed" for QFT as a diagnostic.
 isolation becomes relative under coherent control. A few fixtures therefore embed a
 compiled block as a controlled operation and compare again.
 
-**C1-lite (`general-lite-v1`, 3.7.1).** The same oracle applied to *scored* outputs
-instead of fixtures: every scored output of the lite panel whose active physical qubits
+**C1-lite (`confirm-profile`, 3.7).** The same oracle applied to *scored* outputs
+instead of fixtures: every scored output of the confirm panel whose active physical qubits
 number at most 25 (all small-band inputs and `ripple_adder_10`; at the baseline these
 outputs use 5 to 25 physical qubits) is compared with its input at every level on the
 first 10 seeds of the block — the seed count C7 uses, since the stage-coverage rule needs
@@ -1679,7 +1638,7 @@ interacting pairs, but the QFT variant still interacted on all 4,950 pairs where
 scored circuit keeps 1,750, and in one assignment its `(D2, N2)` was (2,298, 15,985)
 against the scored (1,983, 9,835) — one reason C6, which runs on the scored circuit
 itself, is the primary evidence for routing. Arbitrary quantum-volume unitaries and
-nonlinear reversible logic cannot be made Clifford by replacing angles: general-profile
+nonlinear reversible logic cannot be made Clifford by replacing angles: the confirm profile's
 families need fixture-appropriate structured oracles, small counterparts and targeted
 regressions, with whatever remains uncovered recorded as such. Seed or workload diversity
 never substitutes for correctness.
@@ -1712,7 +1671,7 @@ a later stage.
   candidate that changes it, or two-qubit synthesis, or infrastructure, reaches at most
   `INCONCLUSIVE` and goes to review (8.6); it is never converted into a `PASS`. At levels
   0–1 the complete-pipeline C7 covers every stage for Clifford variants. In
-  `general-lite-v1`, C1-lite (5.3) verifies every stage on the 18 small scored input
+  `confirm-profile`, C1-lite (5.3) verifies every stage on the 18 small scored input
   groups at all levels, so the review of an optimization-stage candidate has exact
   evidence on half the panel; the medium and large cases keep the limit above. Also
   explain any case that verified at the baseline and does not under the candidate.
@@ -1767,7 +1726,7 @@ subsections that follow detail each of them.
    6.4). A (case, seed) missing on any revision leaves the panel incomplete and rules out
    `PASS` (4.5).
 
-In the focused profile one revision on the block is 9 cases × 100 seeds = 900 compiles
+In the iterations profile one revision on the block is 9 cases × 100 seeds = 900 compiles
 (about 10 CPU-minutes, 3.9), before the routing replay. A decision costs that for the
 candidate; the baseline's records are compiled the first time it is used and cached
 from then on.
@@ -1801,7 +1760,7 @@ each time.
 - **Fan-out.** `SabreLayout` seeds a PCG generator with the transpiler seed and draws one
   64-bit seed per layout trial. At level 2 that is 20 random starting layouts plus 3
   heuristic ones (dense subset, trivial, reversed; one more hard-coded ring on 127-, 133-
-  and 156-qubit devices — none on the 193-qubit focused target). Each trial shuffles its
+  and 156-qubit devices — none on the 193-qubit primary target). Each trial shuffles its
   own random initial layout, refines it with `max_iterations` forward and backward routing
   passes, then runs `swap_trials` seeded routing trials.
 - **Selection.** Among routing trials, and again among layout trials, the winner is the
@@ -1830,10 +1789,10 @@ of about 6–12%. Hence 100 seeds and paired differences.
 | `KB1`, `KB2` | 100–199, 200–299 | Baseline-only calibration: the null comparison of 4.9 and the deterministic and zero-baseline role classification (4.5) | The baseline alone, in `calibrate` |
 | Companion | 0–19 | Multi-seed timing | Both revisions, in the timing companion |
 
-Only cases judged one at a time — canaries, C7, and the lite profile's deterministic,
+Only cases judged one at a time — canaries, C7, and the confirm profile's deterministic,
 zero-baseline and per-case guards, among them the guard cases of 3.4 — may declare a
 smaller seed count in the manifest (`hwb12` uses the first 20 seeds of the block;
-canaries, C7, C6 on the per-case guards, the lite deterministic and zero-baseline
+canaries, C7, C6 on the per-case guards, the confirm profile's deterministic and zero-baseline
 guards and the level-3 `su2_circular_n89` guard the first 10). Every case of a scored or summarized
 panel uses the whole block, because `delta_s` and the bootstrap's shared seed vector
 need one common seed set.
@@ -1875,11 +1834,11 @@ arithmetic mean. Memory uses the case's fixed seed.
 
 More seeds test search noise on an existing input. They do **not** test generalization
 to unseen circuits. A hundred seeds of three circuits remain three circuits — which is why
-the focused verdict is panel-specific, why the general profile requires independent input
-groups and the bootstrap of 4.7, and why a change iterated on the focused profile is
-checked on the lite profile's circuits rather than on more seeds of the same three
-(section 1). The lite profile lacks the bootstrap gate, which is why its claim stops at
-the fixed panel (3.7.1).
+the iterations verdict is panel-specific, why the confirm profile scores independent input
+groups and reports the bootstrap of 4.7, and why a change iterated on the iterations profile
+is checked on the confirm profile's circuits rather than on more seeds of the same three
+(section 1). The confirm profile has no bootstrap gate, which is why its claim stops at
+the fixed panel (3.7).
 
 ### 6.7. Determinism audit
 
@@ -1932,26 +1891,26 @@ Probe (`cz` target; seeds 0–2, level 3 seeds 0–1), range of `D2` / `N2`:
 
 | Where | Levels | Why |
 | --- | --- | --- |
-| Focused scored and basis-guard cases | **2 only** | One configuration keeps iteration fast; level 2 is the preset default. A focused `PASS` is therefore a level-2 claim |
-| Focused canaries | 2; and 2–3 for `long_2q_sequence` | That canary tests two-qubit resynthesis, which exists only at levels 2–3 (1,002 versus 3) |
+| Iterations-profile scored and basis-guard cases | **2 only** | One configuration keeps iteration fast; level 2 is the preset default. An iterations `PASS` is therefore a level-2 claim |
+| Iterations-profile canaries | 2; and 2–3 for `long_2q_sequence` | That canary tests two-qubit resynthesis, which exists only at levels 2–3 (1,002 versus 3) |
 | Timing panel | Resolved default for T1–T2; 2 for T11–T19; **0–3** for T3–T10 | Level-specific slowdowns (for example a costlier loop at level 3) must not hide behind level 2 |
 | C1–C2 correctness | **0–3** | Each level assembles different passes |
-| C6 and C7 | The scored level; general profiles: every scored level | Coverage differs by level (7.4) |
-| `general-lite-v1` | **0–3 for every seed-sensitive input**; level 0 only for the path- and ring-shaped inputs (deterministic guards at 1–3); levels 0–2 for `su2_circular_n89` (10-seed guard at 3); 2 only for the `hwb12` guard | The suite's seed-blind, VF2-bound and expensive inputs (3.7.1); each level's summary is guarded, so a level-2 gain cannot hide a level-1 loss |
-| General profile | **0–3 for every supported input/target pair** | A comparison restricted to level 2 supports only that narrower claim |
+| C6 and C7 | The scored level; confirm profile: every scored level | Coverage differs by level (7.4) |
+| `confirm-profile` | **0–3 for every seed-sensitive input**; level 0 only for the path- and ring-shaped inputs (deterministic guards at 1–3); levels 0–2 for `su2_circular_n89` (10-seed guard at 3); 2 only for the `hwb12` guard | The suite's seed-blind, VF2-bound and expensive inputs (3.7); each level's summary is guarded, so a level-2 gain cannot hide a level-1 loss |
 
-Nothing in the focused profile guards levels 1 and 3 on the scored circuits; section 12
+Nothing in the iterations profile guards levels 1 and 3 on the scored circuits; section 12
 lists adding three guard-only `cz` cases at each of those
 levels as an open option.
 
-### 7.3. Levels in the general score
+### 7.3. Levels in the confirm score
 
 A level is a dimension of the case, like basis or topology:
 
-- **Weight.** Inside each (family, size band, topology, basis) cell the present levels
-  share the weight equally, so with four levels each carries a quarter of the cell. The
-  case ID contains the level; the four levels of one input are separate cases in the
-  **same input group**, never independent inputs.
+- **Weight.** Level sits directly under family in the weight tree of 3.7: inside each
+  family the levels present in the frozen manifest share the family's weight equally, so
+  with four levels each carries a quarter of the family. The case ID contains the level;
+  the four levels of one input are separate cases in the **same input group**, never
+  independent inputs.
 - **Level summaries guard.** Each level's marginal summary (4.6) must satisfy
   `ln(score) <= 3·SE` for `D2` and `N2` against the baseline, so a gain at level 2
   cannot hide a regression at level 1. Per-case caps apply at every level.
@@ -1969,13 +1928,13 @@ A level is a dimension of the case, like basis or topology:
   For inputs that do not embed this dominates compile time: the 89-qubit ring takes about
   5 s at level 2 (three probed seeds, 98% of it in `VF2Layout`) and 33 s at level 3 (one
   seed), and because VF2 ignores the seed the same search is repeated for every seed.
-  Profile level-3 cases before freezing a general manifest — the lite probe found one
-  such case, `su2_circular_n89` at 40 s, and demoted it to a guard (3.7.1). Because the
+  Profile level-3 cases before freezing a confirm manifest — the probe of 3.7 found one
+  such case, `su2_circular_n89` at 40 s, and demoted it to a guard (3.7). Because the
   budgets count calls rather than time, slow cases are still deterministic.
 - **Oracles.** The routing replay (C6) verified all four levels. Levels 0–1 do no
   two-qubit resynthesis, so the complete pipeline is also verifiable at scale on Clifford
   variants (3 of 3 at each level). Levels 2–3 need the prefix configuration. Under the
-  stage-coverage rule a general-profile candidate is therefore limited by its level 2–3
+  stage-coverage rule a confirm-profile candidate is therefore limited by its level 2–3
   cases.
 
 ### 7.5. A level is configuration, never a tunable
@@ -2013,52 +1972,38 @@ not the candidate's doing — a missing measurement, a coverage gap in the profi
 `unresolved`, whereas an unexpected evolved crash or timeout is a `failed` `completeness`
 record.
 
-### 8.2. Focused acceptance checklist
+### 8.2. Iterations acceptance checklist
 
 Every rule is evaluated once, on the comparison block, for the candidate and the baseline.
 
 | # | Constraint | Kind | Reference |
 | --- | --- | --- | --- |
-| FA1 | All required correctness checks pass on every revision, and stage coverage is satisfied | correctness | — |
-| FA2 | Primary `cz` panel: `ln(D2_score) + 2·SE < 0` | improvement | Baseline |
-| FA3 | On each of `cx`, `cz`, `ecr`: `ln(D2_score) <= 3·SE`, `ln(N2_score) <= 3·SE`, no `case_ratio` above 1.05 for either metric | guard | Baseline |
-| FA4 | Canaries equal their expected values (a departure is `unresolved`) | guard | Baseline |
-| FA5 | Timing panel: `ln_panel <= noise_panel`, no case breach, the in-run control arm clean; the multi-seed companion and preset-construction panel likewise when required | cost | Baseline |
-| FA6 | Complete measurements, zero unexpected crashes or timeouts, determinism audit passed | completeness | — |
+| IA1 | All required correctness checks pass on every revision, and stage coverage is satisfied | correctness | — |
+| IA2 | Primary `cz` panel: `ln(D2_score) + 2·SE < 0` | improvement | Baseline |
+| IA3 | On each of `cx`, `cz`, `ecr`: `ln(D2_score) <= 3·SE`, `ln(N2_score) <= 3·SE`, no `case_ratio` above 1.05 for either metric | guard | Baseline |
+| IA4 | Canaries equal their expected values (a departure is `unresolved`) | guard | Baseline |
+| IA5 | Timing panel: `ln_panel <= noise_panel`, no case breach, the in-run control arm clean; the multi-seed companion and preset-construction panel likewise when required | cost | Baseline |
+| IA6 | Complete measurements, zero unexpected crashes or timeouts, determinism audit passed | completeness | — |
 
-### 8.3. General acceptance checklists
+### 8.3. Confirm acceptance checklist
 
-The broad rules replace FA2–FA3; a general pass does not additionally require improvement
-on the three-circuit score. Correctness, canaries, zero-baseline guards and the focused
-overhead timing guards still apply. As in the focused profile, every rule is evaluated
-once, on the comparison block.
-
-**`general-lite-v1`.**
+The broad rules replace IA2–IA3; a confirm `PASS` does not additionally require improvement
+on the three-circuit score. Correctness, canaries, zero-baseline guards and the iterations
+profile's overhead timing guards still apply. As in the iterations profile, every rule is
+evaluated once, on the comparison block.
 
 | # | Constraint | Kind | Reference |
 | --- | --- | --- | --- |
-| LA1 | All required correctness checks pass on every revision — C0, C6 and C1-lite on every scored output, C7 on the 100-qubit circuits — and stage coverage is satisfied (5.9) | correctness | — |
-| LA2 | Against the baseline: `ln(D2_score) + 2·SE < ln(0.99)` | improvement | Baseline |
-| LA3 | Breadth: at least 4 of the 8 families satisfy `ln(D2_family_score) + 2·SE_family < 0`, and removing any one family and renormalizing leaves `D2_score < 1` | improvement | Baseline |
-| LA4 | Guards against the baseline: every family and level summary has `ln(score) <= 3·SE` for `D2` and `N2`; so does overall `N2`; no positive case ratio above 1.05; per-case standard-error guards (`ln(case_ratio) <= 3·SE_case` and ratio at most 1.05, both metrics), deterministic guards, zero-baseline guards and the all-to-all control show no increase; canaries hold; band, topology and basis summaries are reported | guard | Baseline |
-| LA5 | Cost against the baseline: the lite timing panel, T1–T19, the preset-construction panel and the companion when required, each `ln_panel <= noise_panel` with no case breach and a clean control arm; the memory panel within its noise, no case above 1.10 | cost | Baseline |
-| LA6 | Complete measurements, zero unexpected crashes or timeouts, determinism audit passed; `U_instance`, the score over the input groups the focused profile does not contain (3.7.1) and the decision count for this manifest printed in the report | completeness | — |
+| CA1 | All required correctness checks pass on every revision — C0, C6 and C1-lite on every scored output, C7 on the 100-qubit circuits — and stage coverage is satisfied (5.9) | correctness | — |
+| CA2 | Against the baseline: `ln(D2_score) + 2·SE < ln(0.99)` | improvement | Baseline |
+| CA3 | Breadth: at least 4 of the 8 families satisfy `ln(D2_family_score) + 2·SE_family < 0`, and removing any one family and renormalizing leaves `D2_score < 1` | improvement | Baseline |
+| CA4 | Guards against the baseline: every family and level summary has `ln(score) <= 3·SE` for `D2` and `N2`; so does overall `N2`; no positive case ratio above 1.05; per-case standard-error guards (`ln(case_ratio) <= 3·SE_case` and ratio at most 1.05, both metrics), deterministic guards, zero-baseline guards and the all-to-all control show no increase; canaries hold; band, topology and basis summaries are reported | guard | Baseline |
+| CA5 | Cost against the baseline: the confirm timing panel, T1–T19, the preset-construction panel and the companion when required, each `ln_panel <= noise_panel` with no case breach and a clean control arm; the memory panel within its noise, no case above 1.10 | cost | Baseline |
+| CA6 | Complete measurements, zero unexpected crashes or timeouts, determinism audit passed; `U_instance`, the score over the input groups the iterations profile does not contain (3.7) and the decision count for this manifest printed in the report | completeness | — |
 
-The lite checklist differs from the full one in one deliberate way: `U_instance` is
-reported, not tested (4.7). A lite `PASS` is the claim of 3.7.1 and nothing wider.
-
-**`general-v1`.** Rules GA1 to GA5 must hold on the whole grid:
-
-| # | Constraint | Kind |
-| --- | --- | --- |
-| GA1 | Meaningful improvement against the baseline: `ln(D2_score) + 2·SE < ln(0.99)` and `U_instance < ln(0.99)` | improvement |
-| GA2 | Breadth: at least 4 of the 8 families satisfy `ln(D2_family_score) + 2·SE_family < 0`, and removing any one family and renormalizing still leaves `D2_score < 1`. These are concentration screens, not eight significance claims | improvement |
-| GA3 | Regression guards against the baseline: every family, size, topology, basis and level summary has `ln(score) <= 3·SE` for `D2` and `N2`; so does overall `N2`; no positive case ratio above 1.05; zero-baseline guards show no increase; all-to-all guards are retained | guard |
-| GA4 | Cost against the baseline: every timing panel (end-to-end and reusable-manager, plus companions when required) and each family summary within its calibrated noise, no case above 1.10; the memory aggregate within its noise, no case above 1.10 | cost |
-| GA5 | Required coverage, independent inputs, semantic evidence and measurements complete; zero unexpected crashes or timeouts | completeness |
-
-A breadth shortfall is a lack of demonstrated improvement, not a violation, which is why
-GA2 is an `improvement` record.
+`U_instance` is reported, not tested (4.7). A breadth shortfall is a lack of demonstrated
+improvement, not a violation, which is why CA3 is an `improvement` record. A confirm
+`PASS` is the claim of 3.7 and nothing wider.
 
 ### 8.4. Verdict precedence
 
@@ -2103,7 +2048,7 @@ Utility commands exit 0 on success and 40 on failure; usage errors exit 64.
 
 | Command | What it does | Can return `PASS`? |
 | --- | --- | --- |
-| `compare --baseline A --evolved B` | The whole lifecycle of 9.1, in one run. Defaults: `focused-v1`, a new run directory. Options select a profile (`--profile general-lite-v1` for the check run of section 1), the results root and a change-scope file. Prints the selected scope and expected work before measuring | Yes |
+| `compare --baseline A --evolved B` | The whole lifecycle of 9.1, in one run. Defaults: `iterations-profile`, a new run directory. Options select a profile (`--profile confirm-profile` for the check run of section 1), the results root and a change-scope file. Prints the selected scope and expected work before measuring | Yes |
 | `smoke …` | Build every revision, one seed per case on a reduced list, structural checks. Writes `smoke.json` and **no** decision | No decision |
 | `calibrate` | Baseline preflight on its own: validate the baseline, profile cost, run or reuse the calibrations and record the manifest and policy hashes they were made under; `compare` runs the same step when no matching record exists | — |
 | `evaluate`, `report` | Recompute the decision and reports from saved observations, without compiling | Re-derives the verdict |
@@ -2164,7 +2109,7 @@ the affected cases) and the outcome, `reviewed_accept` or `reviewed_reject`.
    records which later measurements were not attempted.
 5. **Cost**, only for candidates whose improvement test passed and that have no `failed`
    record: timing panel with its control arm, companion and preset panel if required,
-   memory (general). Controlled runner, exclusive, interleaved. A noisy cost breach gets
+   memory (confirm profile). Controlled runner, exclusive, interleaved. A noisy cost breach gets
    the one re-measurement of 4.8.
 6. **Record and report.** Append the decision to the results root's count for this
    manifest, whatever the verdict; store unsuccessful attempts as well as passes. Mark
@@ -2205,7 +2150,7 @@ Sizes are relative (S, M, L). Each milestone ends with a demonstrable exit crite
 | M0-2 | JSON Schemas and versioning rules: manifest, policy, job/result protocol, observation, constraint record, decision | M |
 | M0-3 | Canonical formats (both constraint forms, symbolic exports, control-flow subset), hashing, pure-Python `D2`/`N2` and legality with reference examples | M |
 | M0-4 | Pinned verifier environment and the canonical-data importer | M |
-| M0-5 | Port the feasibility prototypes into `tools/probes/` and tests: metric extractor, full-width recipe, routing replay, layout-semantics checks, the general-lite probe and panel generator (`design/probes/`) | S |
+| M0-5 | Port the feasibility prototypes into `tools/probes/` and tests: metric extractor, full-width recipe, routing replay, layout-semantics checks, the confirm-profile probe and panel generator (`design/probes/`) | S |
 
 *Exit:* schema tests pass; the extractor reproduces the reference examples and matches the
 pinned Qiskit's `depth(filter_function)` on sample circuits; canonical data round-trips
@@ -2218,16 +2163,16 @@ through the importer.
 | M1-1 | Snapshotter: Git and non-Git folders, dirty state, untracked files, tree hash, read-only sources | M |
 | M1-2 | Environment builder: locked dependencies and build requirements, forced toolchain, sanitized build variables, provenance, artifact hashes | L |
 | M1-3 | Version adapter and worker (`roundtrip`, `quality`, `prefix`), sanitized import path, provenance self-check, pipeline fingerprint | L |
-| M1-4 | Focused fixtures and frozen targets curated with provenance and licenses; the `hwb12` question settled | M |
+| M1-4 | Iterations-profile fixtures and frozen targets curated with provenance and licenses; the `hwb12` question settled | M |
 | M1-5 | Coordinator: scheduling, per-compile timeouts, resumable persistence, content-addressed cache | L |
 | M1-6 | `smoke` command and raw output bundle | S |
 
 *Exit:* given two real folders, both build and verify provenance; round-trip hashes equal
-the frozen hashes on both; one compile per focused case is exported; identical folders
+the frozen hashes on both; one compile per iterations-profile case is exported; identical folders
 give identical output hashes; editing a source file changes the snapshot hash and misses
 the cache; a test proves no process imports two Qiskits. Smoke runs issue no decision.
 
-**M2 — Focused evaluator**
+**M2 — Iterations evaluator**
 
 | Task | Work | Size |
 | --- | --- | --- |
@@ -2255,22 +2200,22 @@ Order inside M2: M2-1, M2-7, M2-8 and M2-14 give a `compare` that scores and rep
 correctness gate; M2-9 to M2-13 complete the cost and calibration side; M2-15 gates the
 first `PASS`.
 
-**M3 — General-lite qualification (`general-lite-v1`, 3.7.1)**
+**M3 — Confirm-profile qualification (`confirm-profile`, 3.7)**
 
 | Task | Work | Size |
 | --- | --- | --- |
-| M3-1 | Curate the lite fixtures from the in-tree suite: the `revlib_*`, `qft16_cancel` and `dtc_n100` files; the `qft.py`, `random_circuit_hex.py`, `ripple_adder.py`, `quantum_volume.py` and `utils.py` constructors at the widths of 3.7.1, with the QAOA parameters bound; provenance grade, upstream source and license per fixture; the `hwb12`/RevLib provenance question settled | M |
+| M3-1 | Curate the confirm fixtures from the in-tree suite: the `revlib_*`, `qft16_cancel` and `dtc_n100` files; the `qft.py`, `random_circuit_hex.py`, `ripple_adder.py`, `quantum_volume.py` and `utils.py` constructors at the widths of 3.7, with the QAOA parameters bound; provenance grade, upstream source and license per fixture; the `hwb12`/RevLib provenance question settled | M |
 | M3-2 | Freeze the eleven additional targets (`mumbai_27`, `mumbai_27_loose`, `melbourne_14`, `melbourne_14_u`, `rochester_53`, `rochester_53_u`, `tokyo_20`, `sycamore_54`, `grid_5x5_u`, `grid_7x7_u`, `a2a_clifford_rz_16`) as canonical data, with the size band computed from active qubits and the topology class recorded | S |
-| M3-3 | Manifest generator for the lite grid: family → level → band → topology → basis → group weight tree, coverage validation against 3.7.2 with declared gaps, exclusions, role assignment from baseline data (deterministic and zero-baseline roles confirmed on the comparison block and the two calibration blocks — the path/ring inputs, `qft16_cancel`, the QUEKO defaults, the all-to-all control) | M |
-| M3-4 | Family-balanced scorer, family and level summaries as guards, band/topology/basis summaries as reports, breadth and leave-one-family-out checks, the leave-focused-out score; the LA1–LA6 records and verdict | M |
+| M3-3 | Manifest generator for the confirm panel: family → level → band → topology → basis → group weight tree, coverage validation against the standard of 3.7 with declared gaps, exclusions, role assignment from baseline data (deterministic and zero-baseline roles confirmed on the comparison block and the two calibration blocks — the path/ring inputs, `qft16_cancel`, the QUEKO defaults, the all-to-all control) | M |
+| M3-4 | Family-balanced scorer, family and level summaries as guards, band/topology/basis summaries as reports, breadth and leave-one-family-out checks, the leave-iterations-out score; the CA1–CA6 records and verdict | M |
 | M3-5 | Report-only paired cluster bootstrap with family strata and the small-sample rescaling | S |
 | M3-6 | C1-lite (5.3): exact equivalence for scored outputs on at most 25 active physical qubits, all levels, first 10 seeds; its stage-coverage record | M |
-| M3-7 | Lite cost panels: the 31-case `timing_e2e` panel, the eight-input companion, the nine-case memory panel and their A/A calibration | M |
-| M3-8 | The lite known-outcome validation (section 11) and one complete lite comparison on real folders | M |
+| M3-7 | Confirm cost panels: the 31-case `timing_e2e` panel, the eight-input companion, the nine-case memory panel and their A/A calibration | M |
+| M3-8 | The confirm-profile known-outcome validation (section 11) and one complete confirm comparison on real folders | M |
 
-*Exit:* the manifest generator proves the lite coverage of 3.7.1 (every family present,
+*Exit:* the manifest generator proves the confirm coverage of 3.7 (every family present,
 every declared gap listed with its reason, weights reproduced to the printed values);
-section 11 passes for the lite evaluator; one complete `general-lite-v1` run on real
+section 11 passes for the confirm evaluator; one complete `confirm-profile` run on real
 folders finishes within the budget of 3.9 (about 3.5 CPU-hours of quality work for the
 candidate and under 3 exclusive hours of cost measurement per decision).
 
@@ -2285,25 +2230,6 @@ candidate and under 3 exclusive hours of cost measurement per decision).
 
 *Exit:* a scheduled job reproduces a stored decision bit-for-bit from its archived inputs;
 the adapter suite is green on every supported Qiskit version.
-
-**M5 — Full general qualification (`general-v1`, 3.7.2), on demand**
-
-Started only when lite comparisons have produced candidates whose claim needs to extend
-beyond the public in-tree panel.
-
-| Task | Work | Size |
-| --- | --- | --- |
-| M5-1 | Fixture generators for G1–G8: at least three groups per family/size cell; the `general-lite-v2` additions of 3.7.1 first | L |
-| M5-2 | Target catalog, asymmetric target, occupied and spare variants, `line` targets | M |
-| M5-3 | Manifest generator: full expansion, weight tree in the 3.7.2 order, coverage proof, exclusions, role assignment from baseline data | M |
-| M5-4 | The paired cluster bootstrap as a decision input, with support validation | M |
-| M5-5 | General timing coverage (both modes, companions) and the full memory panel with its calibration | L |
-| M5-6 | Baseline feasibility profiling and scope freeze | M |
-
-*Exit:* the manifest generator proves coverage (all families, bands and topology
-classes, at least three groups per stratum, identical support inside strata); section 11
-passes for the general evaluator on synthetic observations; one complete general run on
-real folders finishes within the budget frozen in M5-6.
 
 ## 11. Validating the harness itself
 
@@ -2350,11 +2276,10 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
    `INCONCLUSIVE`; a candidate failure outranks a reference failure; zero values follow
    4.5 and never reach `ln(0)`.
 6. **Estimators.** The worked example of 4.3 reproduces to the printed digits; the weight
-   tree reproduces 1/2592 for the full grid and, in the lite order, 1/96, 1/128 and
-   1/384 for the `qft_n100`, `qv_n50_d50` and `mcx_kg24_n16` level-2 cases of 3.7.1;
-   the bootstrap and the sign-flip calibration reproduce under
-   their recorded RNG seeds; on synthetic null data the measured false-rejection rate
-   matches its known value.
+   tree reproduces 1/96, 1/128 and 1/384 for the `qft_n100`, `qv_n50_d50` and
+   `mcx_kg24_n16` level-2 cases of 3.7; the bootstrap and the sign-flip calibration
+   reproduce under their recorded RNG seeds; on synthetic null data the measured
+   false-rejection rate matches its known value.
 7. **Isolation and caching.** No process imports two Qiskits; a source edit invalidates
    cached builds; a changed option misses the cache; adding a case leaves other entries
    valid.
@@ -2369,35 +2294,35 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
 | --- | --- | --- |
 | No at-scale oracle for the optimization stage at levels 2–3 | Automatic `PASS` limited to layout/routing candidates; most other runs end `INCONCLUSIVE` | State it in every report; the review workflow gives such candidates a path; pursue a stronger oracle (block-wise equivalence of resynthesized two-qubit regions is one candidate) as separate work |
 | The verifier's pinned Qiskit shares its lineage with every revision | A common-mode error goes unseen | Keep metric, legality and replay code pure Python; mutation tests (section 11); update the pin deliberately, never implicitly |
-| No false-acceptance control across repeated comparisons: every run uses the same seeds and circuits | Each comparison errs in the candidate's favor about 2.3% of the time, so `N` compare-edit-compare rounds on one profile accumulate about `1 − 0.977^N`, and a candidate kept because it passed carries the luck of those seeds | The profile workflow of section 1: iterate on the focused profile, check once on the lite profile, whose panel the loop did not contain; the report prints the per-manifest decision count and the leave-focused-out score; claim no formal rate; consider a sequential-testing policy before automating a search loop |
-| The lite profile becomes the loop | Its check value is gone: the same selection bias now sits on the 38-group panel, with nothing above it but the unbuilt full grid | State the rule in the report; the decision count makes it visible; if it happens in practice, add a `general-lite-v2` panel of inputs the loop never saw and treat the old one as tuning data |
-| The focused profile has no minimum effect size | With small `SE` a negligible gain can pass | Decide before freezing whether to add a practical threshold like the general profile's 1% |
+| No false-acceptance control across repeated comparisons: every run uses the same seeds and circuits | Each comparison errs in the candidate's favor about 2.3% of the time, so `N` compare-edit-compare rounds on one profile accumulate about `1 − 0.977^N`, and a candidate kept because it passed carries the luck of those seeds | The profile workflow of section 1: iterate on the iterations profile, check once on the confirm profile, most of whose panel the loop did not contain; the report prints the per-manifest decision count and the leave-iterations-out score; claim no formal rate; consider a sequential-testing policy before automating a search loop |
+| The confirm profile becomes the loop | Its check value is gone: the same selection bias now sits on the 38-group panel, with nothing above it | State the rule in the report; the decision count makes it visible; if it happens in practice, add a new confirm manifest version of inputs the loop never saw and treat the old one as tuning data |
+| The iterations profile has no minimum effect size | With small `SE` a negligible gain can pass | Decide before freezing whether to add a practical threshold like the confirm profile's 1% |
 | The guards tolerate small slowdowns by design | A panel slowdown within the noise allowance and a per-case 10% are purchasable | Accepted policy; the allowance is not spent repeatedly as long as successive comparisons name the same original baseline (section 1) |
-| Budget: `hwb12` 41–49 s per compile; level-3 VF2 up to 40 s; the full general grid is about 259,200 compiles and on the order of 150,000 timing processes per revision set | Comparisons too slow to run | `general-lite-v1` (3.7.1) at ≈87 CPU-minutes per revision is the profile comparisons run; the baseline is compiled once and cached; the full grid is deferred to M5; profile before freezing; run quality concurrently; per-case seed counts |
-| The lite panel is thin in places: G6 has one group per band, and G2 and G7 are seed-sensitive at levels 1–3 on one input each (`square_heisenberg_n100` 9.9% and `su2_circular_n89` 9.4% of the score) | A single input can move a family summary and a fifth of the score sits on two circuits | Declared in 3.7.1; the family breadth rule and level guards limit the damage; `general-lite-v2` adds a 2D-lattice Hamiltonian and a non-embeddable ansatz first; a lite `PASS` claims the fixed panel only |
-| Path- and ring-shaped in-tree inputs are seed-blind at levels 1–3 (VF2 embeds them) | Half the suite's Hamiltonian and ansatz inputs carry no routing signal above level 0 | Deterministic-guard role at 1–3, frozen from baseline data; scored at level 0; level placed directly under family in the lite weight tree so they cannot take a whole cell |
+| Budget: `hwb12` 41–49 s per compile; level-3 VF2 up to 40 s | Comparisons too slow to run | `confirm-profile` (3.7) costs ≈87 CPU-minutes of quality compiles per revision; the baseline is compiled once and cached; profile before freezing; run quality concurrently; per-case seed counts |
+| The confirm panel is thin in places: G6 has one group per band, and G2 and G7 are seed-sensitive at levels 1–3 on one input each (`square_heisenberg_n100` 9.9% and `su2_circular_n89` 9.4% of the score) | A single input can move a family summary and a fifth of the score sits on two circuits | Declared in 3.7; the family breadth rule and level guards limit the damage; the next confirm manifest version adds a 2D-lattice Hamiltonian and a non-embeddable ansatz first; a confirm `PASS` claims the fixed panel only |
+| Path- and ring-shaped in-tree inputs are seed-blind at levels 1–3 (VF2 embeds them) | Half the suite's Hamiltonian and ansatz inputs carry no routing signal above level 0 | Deterministic-guard role at 1–3, frozen from baseline data; scored at level 0; level placed directly under family in the confirm weight tree so they cannot take a whole cell |
 | `time_qft_16.qasm` is a mis-written QFT whose `cx` pairs cancel; `quantum_volume.py` never applies its seed; three RevLib files and the Tokyo QUEKO instance declare qubits they do not use | Upstream fixtures taken at face value would mislabel bands, roles or sizes | Roles from measured baseline data, not names; size band from active qubits; QV matrices frozen with a recorded seed; each finding recorded in `PROVENANCE.md` |
-| `su2_circular_n89` carries 9.4% of the lite score as the only seed-sensitive ansatz | One circuit can move the family and the score | Stated in 3.7.1; its level-3 guard and the family breadth rule limit the damage; `general-lite-v2` adds a second ansatz |
+| `su2_circular_n89` carries 9.4% of the confirm score as the only seed-sensitive ansatz | One circuit can move the family and the score | Stated in 3.7; its level-3 guard and the family breadth rule limit the damage; the next confirm manifest version adds a second ansatz |
 | Guard multiplicity | Good candidates rejected | Guards at `3·SE`, calibrated on baseline-only data (4.9), accepting the stated power cost; demote summaries to report-only rather than widen further |
 | Timing noise on shared machines | False cost breaches or masked regressions | Controlled runner, A/A calibration, in-run control arm, absolute floors, refuse to freeze above 5% noise |
 | Adapter drift across Qiskit versions | Silent configuration differences | Public interfaces only, `unsupported` instead of workarounds, fingerprint diffs, adapter tests per supported version |
 | Different Rust toolchain pins between folders | A legitimate toolchain bump becomes `ERROR` | Forced common toolchain by default; otherwise a labeled changed-environment experiment that cannot pass |
 | Fixture provenance and licensing (QUEKO files carry notices; `hwb12` and the five RevLib files carry none) | Redistribution problems | Record origin and license per fixture before committing it; replace a fixture whose terms cannot be established — `utils.py`'s synthesis constructions can stand in for the RevLib circuits |
 | Clifford variants are not the scored routing problem (QFT) | At-scale evidence weaker than it looks | C6 on the scored circuit is the primary routing evidence; compare interaction graphs; report the variant's metrics beside the scored ones |
-| Levels 1 and 3 are unguarded in the focused profile | A level-2 gain could pass while hurting other levels | Optional: three guard-only `cz` cases at each of levels 1 and 3 (about 10 CPU-minutes per block) |
+| Levels 1 and 3 are unguarded in the iterations profile | A level-2 gain could pass while hurting other levels | Optional: three guard-only `cz` cases at each of levels 1 and 3 (about 10 CPU-minutes per block) |
 
 **Defaults to freeze before the first candidate** (all adjustable, none after freezing):
 
 | Parameter | Default |
 | --- | --- |
-| Seeds per block; blocks | 100; `B0` 0–99 for every comparison, `KB1` 100–199 and `KB2` 200–299 for baseline-only calibration; `hwb12` 20 seeds; canaries, C7, the lite deterministic, zero-baseline and per-case guards and C6 on those guards 10 seeds; C1 seeds 0–4; no reduced counts inside a scored or summarized panel |
+| Seeds per block; blocks | 100; `B0` 0–99 for every comparison, `KB1` 100–199 and `KB2` 200–299 for baseline-only calibration; `hwb12` 20 seeds; canaries, C7, the confirm profile's deterministic, zero-baseline and per-case guards and C6 on those guards 10 seeds; C1 seeds 0–4; no reduced counts inside a scored or summarized panel |
 | Improvement multiplier; guard multiplier | 2.0 standard errors; 3.0 standard errors |
 | Per-case caps | 1.05 quality; 1.10 cost, together with the absolute noise floor |
 | `deterministic` and `zero_baseline` roles | Frozen from baseline data: constant on the comparison block and the two calibration blocks; compared exactly, seed by seed; mixed zero/positive cases excluded or under the paired absolute rule |
 | Upstream tests | Baseline's Python tests against the evolved build are binding, minus a frozen output-pinned list that is report-only; Rust inline tests are the evolved snapshot's own |
-| Routing guard circuits (3.4) | Members of `general-lite-v1` only, with the levels and roles of its tables (`hwb12` at level 2 only); primary `cz` target unless fixture-fixed; QUEKO in both default and SABRE-method configurations; references the baseline |
-| General practical effect; breadth | 1%; at least 4 of 8 families and leave-one-family-out below 1 |
-| `general-lite-v1` specifics | Weight tree family → level → band → topology → basis → group over the one 38-group panel; `+2·SE < ln(0.99)`; family and level summaries guarded, band/topology/basis summaries reported; bootstrap report-only with family strata; leave-focused-out score reported; C1-lite on outputs with at most 25 active physical qubits, first 10 seeds, operators up to 10 qubits, then the all-zeros state plus 8 (up to 16 qubits) or 2 frozen random product states; `su2_circular_n89` level 3 and `hwb12` level 2 as 10- and 20-seed guards; size band from active qubits |
+| Routing guard circuits (3.4) | Members of `confirm-profile` only, with the levels and roles of its tables (`hwb12` at level 2 only); primary `cz` target unless fixture-fixed; QUEKO in both default and SABRE-method configurations; references the baseline |
+| Confirm practical effect; breadth | 1%; at least 4 of 8 families and leave-one-family-out below 1 |
+| `confirm-profile` specifics | Weight tree family → level → band → topology → basis → group over the one 38-group panel; `+2·SE < ln(0.99)`; family and level summaries guarded, band/topology/basis summaries reported; bootstrap report-only with family strata; leave-iterations-out score reported; C1-lite on outputs with at most 25 active physical qubits, first 10 seeds, operators up to 10 qubits, then the all-zeros state plus 8 (up to 16 qubits) or 2 frozen random product states; `su2_circular_n89` level 3 and `hwb12` level 2 as 10- and 20-seed guards; size band from active qubits |
 | Bootstrap | 10,000 replicates, 95th percentile, frozen RNG seed, at least 3 groups per stratum, `sqrt(n/(n−1))` rescaling |
 | Numerical tolerances | Operators `rtol 1e-7`, `atol 1e-8`; states, expectations and TVD `1e-8` |
 | Timing protocol | 10 rounds; 1 warm-up; at least 3 timed calls and 1 s per round; control arm; companion seeds 0–19 × 3 rounds; T1–T2 with the level omitted |
@@ -2420,7 +2345,7 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
 
 ```json
 {
-  "case_id": "focused/qft_n100/heavy_hex_d9_cz/L2",
+  "case_id": "iterations/qft_n100/heavy_hex_d9_cz/L2",
   "role": "scored",
   "family": "G1-qft", "size_band": "large", "logical_qubits": 100, "active_qubits": 100,
   "topology": "heavy-hex", "native_basis": "cz", "optimization_level": 2,
@@ -2470,7 +2395,7 @@ pipeline-fingerprint hash; errors. Inapplicable metrics are absent, not zero.
 {
   "status": "INCONCLUSIVE",
   "improved_under_constraints": null,
-  "profile": "focused-v1",
+  "profile": "iterations-profile",
   "hashes": {"manifest": "<hash>", "policy": "<hash>", "harness": "<version>"},
   "seed_block": "B0", "decisions_before": 3,
   "identities": {"baseline": "<build id>", "evolved": "<build id>"},
@@ -2479,15 +2404,15 @@ pipeline-fingerprint hash; errors. Inapplicable metrics are absent, not zero.
      "score": 0.9731, "ln_score": -0.02727, "SE": 0.00561, "ln_score_plus_2SE": -0.01605}
   ],
   "constraints": [
-    {"id": "FA3/cx/N2", "kind": "guard", "subject": "evolved",
+    {"id": "IA3/cx/N2", "kind": "guard", "subject": "evolved",
      "reference": "baseline", "value": 0.0031, "SE": 0.0024,
      "threshold": "ln(score) <= 3*SE", "result": "passed"},
-    {"id": "FA1/stage-coverage", "kind": "correctness", "subject": "evolved",
+    {"id": "IA1/stage-coverage", "kind": "correctness", "subject": "evolved",
      "result": "unresolved",
      "detail": "candidate changes 'optimization'; at-scale coverage ends at 'translation'"}
   ],
   "reasons": [{"code": "UNRESOLVED_SEMANTIC_COVERAGE",
-               "cases": ["focused/qft_n100/heavy_hex_d9_cz/L2"]}],
+               "cases": ["iterations/qft_n100/heavy_hex_d9_cz/L2"]}],
   "noisy_guard_count": 7, "calibrated_false_rejection_rate": 0.012,
   "review": null
 }

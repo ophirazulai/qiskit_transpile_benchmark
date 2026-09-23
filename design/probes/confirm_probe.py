@@ -1,10 +1,10 @@
 """Probe every transpile-benchmark case that exists in test/benchmarks/ at the baseline.
 
-Behind section 3.7.1 of design/transpilation-benchmark-impl-plan.md.  For each (input,
+Behind section 3.7 of design/transpilation-benchmark-impl-plan.md.  For each (input,
 target) pair and each optimization level 0-3 it records, at the baseline build and in the
 serial reference environment: circuit facts, wall time of one transpile() call, and D2/N2
-over transpiler seeds 0-2.  Output: general_lite_probe.jsonl (one record per compile).
-Run from the repository root with the project virtualenv:  python design/probes/general_lite_probe.py
+over transpiler seeds 0-2.  Output: confirm_probe.jsonl (one record per compile).
+Run from the repository root with the project virtualenv:  python design/probes/confirm_probe.py
 """
 import json, os, sys, time, warnings, traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -14,7 +14,7 @@ os.environ.update({"QISKIT_PARALLEL": "FALSE", "QISKIT_IGNORE_USER_SETTINGS": "T
 os.environ.pop("QISKIT_SABRE_ALL_THREADS", None)
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 sys.path.insert(0, ROOT)
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "general_lite_probe.jsonl")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "confirm_probe.jsonl")
 QASM = os.path.join(ROOT, "test", "benchmarks", "qasm")
 
 SEEDS = [0, 1, 2]

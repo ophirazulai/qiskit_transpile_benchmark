@@ -1,6 +1,6 @@
 {
- "profile": "general-lite-v1",
- "status": "draft \u2014 proposal; roles must be confirmed from baseline data on TB0 and two calibration blocks before freezing (impl plan 3.7.1, 4.5)",
+ "profile": "confirm-profile",
+ "status": "draft \u2014 proposal; roles must be confirmed from baseline data on TB0 and two calibration blocks before freezing (impl plan 3.7, 4.5)",
  "baseline": {
   "qiskit": "2.6.0.dev0",
   "commit": "0131cbbcc",
@@ -54,11 +54,11 @@
   "G2 and G7 validation split at levels 1-3: the suite's only inputs are seed-blind (path/ring) or canaries",
   "G7 level 3: su2_circular_n89 is a 10-seed guard (40 s per compile in VF2)",
   "fewer than 3 input groups per family/size cell per split: bootstrap report-only",
-  "ecr scored nowhere: guarded through the focused basis guards only"
+  "ecr scored nowhere: guarded through the iterations profile's basis guards only"
  ],
  "cases": [
   {
-   "case_id": "general-lite/qft_n100/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/qft_n100/heavy_hex_d9_cz/L0",
    "role": "scored",
    "family": "G1",
    "size_band": "large",
@@ -107,7 +107,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_n100/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/qft_n100/heavy_hex_d9_cz/L1",
    "role": "scored",
    "family": "G1",
    "size_band": "large",
@@ -156,7 +156,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_n100/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/qft_n100/heavy_hex_d9_cz/L2",
    "role": "scored",
    "family": "G1",
    "size_band": "large",
@@ -205,7 +205,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_n100/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/qft_n100/heavy_hex_d9_cz/L3",
    "role": "scored",
    "family": "G1",
    "size_band": "large",
@@ -254,7 +254,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_cp_n14/melbourne_14_u/L0",
+   "case_id": "confirm/qft_cp_n14/melbourne_14_u/L0",
    "role": "scored",
    "family": "G1",
    "size_band": "small",
@@ -303,7 +303,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_cp_n14/melbourne_14_u/L1",
+   "case_id": "confirm/qft_cp_n14/melbourne_14_u/L1",
    "role": "scored",
    "family": "G1",
    "size_band": "small",
@@ -352,7 +352,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_cp_n14/melbourne_14_u/L2",
+   "case_id": "confirm/qft_cp_n14/melbourne_14_u/L2",
    "role": "scored",
    "family": "G1",
    "size_band": "small",
@@ -401,7 +401,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_cp_n14/melbourne_14_u/L3",
+   "case_id": "confirm/qft_cp_n14/melbourne_14_u/L3",
    "role": "scored",
    "family": "G1",
    "size_band": "small",
@@ -450,7 +450,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_full_n32/rochester_53/L0",
+   "case_id": "confirm/qft_full_n32/rochester_53/L0",
    "role": "scored",
    "family": "G1",
    "size_band": "medium",
@@ -499,7 +499,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_full_n32/rochester_53/L1",
+   "case_id": "confirm/qft_full_n32/rochester_53/L1",
    "role": "scored",
    "family": "G1",
    "size_band": "medium",
@@ -548,7 +548,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_full_n32/rochester_53/L2",
+   "case_id": "confirm/qft_full_n32/rochester_53/L2",
    "role": "scored",
    "family": "G1",
    "size_band": "medium",
@@ -597,7 +597,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_full_n32/rochester_53/L3",
+   "case_id": "confirm/qft_full_n32/rochester_53/L3",
    "role": "scored",
    "family": "G1",
    "size_band": "medium",
@@ -646,7 +646,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_cp_n8/melbourne_14_u/L0",
+   "case_id": "confirm/qft_cp_n8/melbourne_14_u/L0",
    "role": "scored",
    "family": "G1",
    "size_band": "small",
@@ -695,7 +695,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_cp_n8/melbourne_14_u/L1",
+   "case_id": "confirm/qft_cp_n8/melbourne_14_u/L1",
    "role": "scored",
    "family": "G1",
    "size_band": "small",
@@ -744,7 +744,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_cp_n8/melbourne_14_u/L2",
+   "case_id": "confirm/qft_cp_n8/melbourne_14_u/L2",
    "role": "scored",
    "family": "G1",
    "size_band": "small",
@@ -793,7 +793,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_cp_n8/melbourne_14_u/L3",
+   "case_id": "confirm/qft_cp_n8/melbourne_14_u/L3",
    "role": "scored",
    "family": "G1",
    "size_band": "small",
@@ -842,7 +842,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_full_n64/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/qft_full_n64/heavy_hex_d9_cz/L0",
    "role": "scored",
    "family": "G1",
    "size_band": "medium",
@@ -891,7 +891,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_full_n64/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/qft_full_n64/heavy_hex_d9_cz/L1",
    "role": "scored",
    "family": "G1",
    "size_band": "medium",
@@ -940,7 +940,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_full_n64/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/qft_full_n64/heavy_hex_d9_cz/L2",
    "role": "scored",
    "family": "G1",
    "size_band": "medium",
@@ -989,7 +989,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft_full_n64/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/qft_full_n64/heavy_hex_d9_cz/L3",
    "role": "scored",
    "family": "G1",
    "size_band": "medium",
@@ -1038,7 +1038,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft16_cancel/mumbai_27/L0",
+   "case_id": "confirm/qft16_cancel/mumbai_27/L0",
    "role": "guard",
    "family": "G1",
    "size_band": "small",
@@ -1087,7 +1087,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft16_cancel/mumbai_27/L1",
+   "case_id": "confirm/qft16_cancel/mumbai_27/L1",
    "role": "guard",
    "family": "G1",
    "size_band": "small",
@@ -1136,7 +1136,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft16_cancel/mumbai_27/L2",
+   "case_id": "confirm/qft16_cancel/mumbai_27/L2",
    "role": "zero_baseline",
    "family": "G1",
    "size_band": "small",
@@ -1185,7 +1185,7 @@
    }
   },
   {
-   "case_id": "general-lite/qft16_cancel/mumbai_27/L3",
+   "case_id": "confirm/qft16_cancel/mumbai_27/L3",
    "role": "zero_baseline",
    "family": "G1",
    "size_band": "small",
@@ -1234,7 +1234,7 @@
    }
   },
   {
-   "case_id": "general-lite/square_heisenberg_n100/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/square_heisenberg_n100/heavy_hex_d9_cz/L0",
    "role": "scored",
    "family": "G2",
    "size_band": "large",
@@ -1283,7 +1283,7 @@
    }
   },
   {
-   "case_id": "general-lite/square_heisenberg_n100/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/square_heisenberg_n100/heavy_hex_d9_cz/L1",
    "role": "scored",
    "family": "G2",
    "size_band": "large",
@@ -1332,7 +1332,7 @@
    }
   },
   {
-   "case_id": "general-lite/square_heisenberg_n100/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/square_heisenberg_n100/heavy_hex_d9_cz/L2",
    "role": "scored",
    "family": "G2",
    "size_band": "large",
@@ -1381,7 +1381,7 @@
    }
   },
   {
-   "case_id": "general-lite/square_heisenberg_n100/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/square_heisenberg_n100/heavy_hex_d9_cz/L3",
    "role": "scored",
    "family": "G2",
    "size_band": "large",
@@ -1430,7 +1430,7 @@
    }
   },
   {
-   "case_id": "general-lite/trotter_chain_n32/rochester_53/L0",
+   "case_id": "confirm/trotter_chain_n32/rochester_53/L0",
    "role": "scored",
    "family": "G2",
    "size_band": "medium",
@@ -1479,7 +1479,7 @@
    }
   },
   {
-   "case_id": "general-lite/trotter_chain_n32/rochester_53/L1",
+   "case_id": "confirm/trotter_chain_n32/rochester_53/L1",
    "role": "deterministic",
    "family": "G2",
    "size_band": "medium",
@@ -1528,7 +1528,7 @@
    }
   },
   {
-   "case_id": "general-lite/trotter_chain_n32/rochester_53/L2",
+   "case_id": "confirm/trotter_chain_n32/rochester_53/L2",
    "role": "deterministic",
    "family": "G2",
    "size_band": "medium",
@@ -1577,7 +1577,7 @@
    }
   },
   {
-   "case_id": "general-lite/trotter_chain_n32/rochester_53/L3",
+   "case_id": "confirm/trotter_chain_n32/rochester_53/L3",
    "role": "deterministic",
    "family": "G2",
    "size_band": "medium",
@@ -1626,7 +1626,7 @@
    }
   },
   {
-   "case_id": "general-lite/trotter_chain_n16/mumbai_27/L0",
+   "case_id": "confirm/trotter_chain_n16/mumbai_27/L0",
    "role": "scored",
    "family": "G2",
    "size_band": "small",
@@ -1675,7 +1675,7 @@
    }
   },
   {
-   "case_id": "general-lite/trotter_chain_n16/mumbai_27/L1",
+   "case_id": "confirm/trotter_chain_n16/mumbai_27/L1",
    "role": "deterministic",
    "family": "G2",
    "size_band": "small",
@@ -1724,7 +1724,7 @@
    }
   },
   {
-   "case_id": "general-lite/trotter_chain_n16/mumbai_27/L2",
+   "case_id": "confirm/trotter_chain_n16/mumbai_27/L2",
    "role": "deterministic",
    "family": "G2",
    "size_band": "small",
@@ -1773,7 +1773,7 @@
    }
   },
   {
-   "case_id": "general-lite/trotter_chain_n16/mumbai_27/L3",
+   "case_id": "confirm/trotter_chain_n16/mumbai_27/L3",
    "role": "deterministic",
    "family": "G2",
    "size_band": "small",
@@ -1822,7 +1822,7 @@
    }
   },
   {
-   "case_id": "general-lite/dtc_n100/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/dtc_n100/heavy_hex_d9_cz/L0",
    "role": "scored",
    "family": "G2",
    "size_band": "large",
@@ -1871,7 +1871,7 @@
    }
   },
   {
-   "case_id": "general-lite/dtc_n100/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/dtc_n100/heavy_hex_d9_cz/L1",
    "role": "deterministic",
    "family": "G2",
    "size_band": "large",
@@ -1920,7 +1920,7 @@
    }
   },
   {
-   "case_id": "general-lite/dtc_n100/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/dtc_n100/heavy_hex_d9_cz/L2",
    "role": "deterministic",
    "family": "G2",
    "size_band": "large",
@@ -1969,7 +1969,7 @@
    }
   },
   {
-   "case_id": "general-lite/dtc_n100/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/dtc_n100/heavy_hex_d9_cz/L3",
    "role": "deterministic",
    "family": "G2",
    "size_band": "large",
@@ -2018,7 +2018,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_ba_n100_3reps/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/qaoa_ba_n100_3reps/heavy_hex_d9_cz/L0",
    "role": "scored",
    "family": "G3",
    "size_band": "large",
@@ -2067,7 +2067,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_ba_n100_3reps/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/qaoa_ba_n100_3reps/heavy_hex_d9_cz/L1",
    "role": "scored",
    "family": "G3",
    "size_band": "large",
@@ -2116,7 +2116,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_ba_n100_3reps/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/qaoa_ba_n100_3reps/heavy_hex_d9_cz/L2",
    "role": "scored",
    "family": "G3",
    "size_band": "large",
@@ -2165,7 +2165,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_ba_n100_3reps/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/qaoa_ba_n100_3reps/heavy_hex_d9_cz/L3",
    "role": "scored",
    "family": "G3",
    "size_band": "large",
@@ -2214,7 +2214,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n8/mumbai_27/L0",
+   "case_id": "confirm/qaoa_complete_n8/mumbai_27/L0",
    "role": "scored",
    "family": "G3",
    "size_band": "small",
@@ -2263,7 +2263,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n8/mumbai_27/L1",
+   "case_id": "confirm/qaoa_complete_n8/mumbai_27/L1",
    "role": "scored",
    "family": "G3",
    "size_band": "small",
@@ -2312,7 +2312,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n8/mumbai_27/L2",
+   "case_id": "confirm/qaoa_complete_n8/mumbai_27/L2",
    "role": "scored",
    "family": "G3",
    "size_band": "small",
@@ -2361,7 +2361,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n8/mumbai_27/L3",
+   "case_id": "confirm/qaoa_complete_n8/mumbai_27/L3",
    "role": "scored",
    "family": "G3",
    "size_band": "small",
@@ -2410,7 +2410,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n16/mumbai_27/L0",
+   "case_id": "confirm/qaoa_complete_n16/mumbai_27/L0",
    "role": "scored",
    "family": "G3",
    "size_band": "small",
@@ -2459,7 +2459,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n16/mumbai_27/L1",
+   "case_id": "confirm/qaoa_complete_n16/mumbai_27/L1",
    "role": "scored",
    "family": "G3",
    "size_band": "small",
@@ -2508,7 +2508,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n16/mumbai_27/L2",
+   "case_id": "confirm/qaoa_complete_n16/mumbai_27/L2",
    "role": "scored",
    "family": "G3",
    "size_band": "small",
@@ -2557,7 +2557,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n16/mumbai_27/L3",
+   "case_id": "confirm/qaoa_complete_n16/mumbai_27/L3",
    "role": "scored",
    "family": "G3",
    "size_band": "small",
@@ -2606,7 +2606,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n32/rochester_53/L0",
+   "case_id": "confirm/qaoa_complete_n32/rochester_53/L0",
    "role": "scored",
    "family": "G3",
    "size_band": "medium",
@@ -2655,7 +2655,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n32/rochester_53/L1",
+   "case_id": "confirm/qaoa_complete_n32/rochester_53/L1",
    "role": "scored",
    "family": "G3",
    "size_band": "medium",
@@ -2704,7 +2704,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n32/rochester_53/L2",
+   "case_id": "confirm/qaoa_complete_n32/rochester_53/L2",
    "role": "scored",
    "family": "G3",
    "size_band": "medium",
@@ -2753,7 +2753,7 @@
    }
   },
   {
-   "case_id": "general-lite/qaoa_complete_n32/rochester_53/L3",
+   "case_id": "confirm/qaoa_complete_n32/rochester_53/L3",
    "role": "scored",
    "family": "G3",
    "size_band": "medium",
@@ -2802,7 +2802,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n50_d50/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/qv_n50_d50/heavy_hex_d9_cz/L0",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -2851,7 +2851,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n50_d50/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/qv_n50_d50/heavy_hex_d9_cz/L1",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -2900,7 +2900,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n50_d50/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/qv_n50_d50/heavy_hex_d9_cz/L2",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -2949,7 +2949,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n50_d50/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/qv_n50_d50/heavy_hex_d9_cz/L3",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -2998,7 +2998,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n14_d14/melbourne_14/L0",
+   "case_id": "confirm/qv_n14_d14/melbourne_14/L0",
    "role": "scored",
    "family": "G4",
    "size_band": "small",
@@ -3047,7 +3047,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n14_d14/melbourne_14/L1",
+   "case_id": "confirm/qv_n14_d14/melbourne_14/L1",
    "role": "scored",
    "family": "G4",
    "size_band": "small",
@@ -3096,7 +3096,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n14_d14/melbourne_14/L2",
+   "case_id": "confirm/qv_n14_d14/melbourne_14/L2",
    "role": "scored",
    "family": "G4",
    "size_band": "small",
@@ -3145,7 +3145,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n14_d14/melbourne_14/L3",
+   "case_id": "confirm/qv_n14_d14/melbourne_14/L3",
    "role": "scored",
    "family": "G4",
    "size_band": "small",
@@ -3194,7 +3194,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n27_d27/mumbai_27_loose/L0",
+   "case_id": "confirm/qv_n27_d27/mumbai_27_loose/L0",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -3243,7 +3243,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n27_d27/mumbai_27_loose/L1",
+   "case_id": "confirm/qv_n27_d27/mumbai_27_loose/L1",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -3292,7 +3292,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n27_d27/mumbai_27_loose/L2",
+   "case_id": "confirm/qv_n27_d27/mumbai_27_loose/L2",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -3341,7 +3341,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n27_d27/mumbai_27_loose/L3",
+   "case_id": "confirm/qv_n27_d27/mumbai_27_loose/L3",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -3390,7 +3390,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n50_d20/rochester_53_u/L0",
+   "case_id": "confirm/qv_n50_d20/rochester_53_u/L0",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -3439,7 +3439,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n50_d20/rochester_53_u/L1",
+   "case_id": "confirm/qv_n50_d20/rochester_53_u/L1",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -3488,7 +3488,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n50_d20/rochester_53_u/L2",
+   "case_id": "confirm/qv_n50_d20/rochester_53_u/L2",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -3537,7 +3537,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n50_d20/rochester_53_u/L3",
+   "case_id": "confirm/qv_n50_d20/rochester_53_u/L3",
    "role": "scored",
    "family": "G4",
    "size_band": "medium",
@@ -3586,7 +3586,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n14_d14_s10/mumbai_27_loose/L0",
+   "case_id": "confirm/qv_n14_d14_s10/mumbai_27_loose/L0",
    "role": "scored",
    "family": "G4",
    "size_band": "small",
@@ -3635,7 +3635,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n14_d14_s10/mumbai_27_loose/L1",
+   "case_id": "confirm/qv_n14_d14_s10/mumbai_27_loose/L1",
    "role": "scored",
    "family": "G4",
    "size_band": "small",
@@ -3684,7 +3684,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n14_d14_s10/mumbai_27_loose/L2",
+   "case_id": "confirm/qv_n14_d14_s10/mumbai_27_loose/L2",
    "role": "scored",
    "family": "G4",
    "size_band": "small",
@@ -3733,7 +3733,7 @@
    }
   },
   {
-   "case_id": "general-lite/qv_n14_d14_s10/mumbai_27_loose/L3",
+   "case_id": "confirm/qv_n14_d14_s10/mumbai_27_loose/L3",
    "role": "scored",
    "family": "G4",
    "size_band": "small",
@@ -3782,7 +3782,7 @@
    }
   },
   {
-   "case_id": "general-lite/ripple_adder_10/grid_5x5_u/L0",
+   "case_id": "confirm/ripple_adder_10/grid_5x5_u/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -3831,7 +3831,7 @@
    }
   },
   {
-   "case_id": "general-lite/ripple_adder_10/grid_5x5_u/L1",
+   "case_id": "confirm/ripple_adder_10/grid_5x5_u/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -3880,7 +3880,7 @@
    }
   },
   {
-   "case_id": "general-lite/ripple_adder_10/grid_5x5_u/L2",
+   "case_id": "confirm/ripple_adder_10/grid_5x5_u/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -3929,7 +3929,7 @@
    }
   },
   {
-   "case_id": "general-lite/ripple_adder_10/grid_5x5_u/L3",
+   "case_id": "confirm/ripple_adder_10/grid_5x5_u/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -3978,7 +3978,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_mod8_10_178/mumbai_27/L0",
+   "case_id": "confirm/revlib_mod8_10_178/mumbai_27/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4027,7 +4027,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_mod8_10_178/mumbai_27/L1",
+   "case_id": "confirm/revlib_mod8_10_178/mumbai_27/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4076,7 +4076,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_mod8_10_178/mumbai_27/L2",
+   "case_id": "confirm/revlib_mod8_10_178/mumbai_27/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4125,7 +4125,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_mod8_10_178/mumbai_27/L3",
+   "case_id": "confirm/revlib_mod8_10_178/mumbai_27/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4174,7 +4174,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_4gt10_v1_81/mumbai_27/L0",
+   "case_id": "confirm/revlib_4gt10_v1_81/mumbai_27/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4223,7 +4223,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_4gt10_v1_81/mumbai_27/L1",
+   "case_id": "confirm/revlib_4gt10_v1_81/mumbai_27/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4272,7 +4272,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_4gt10_v1_81/mumbai_27/L2",
+   "case_id": "confirm/revlib_4gt10_v1_81/mumbai_27/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4321,7 +4321,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_4gt10_v1_81/mumbai_27/L3",
+   "case_id": "confirm/revlib_4gt10_v1_81/mumbai_27/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4370,7 +4370,7 @@
    }
   },
   {
-   "case_id": "general-lite/multiplier_h18_n32/rochester_53/L0",
+   "case_id": "confirm/multiplier_h18_n32/rochester_53/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -4419,7 +4419,7 @@
    }
   },
   {
-   "case_id": "general-lite/multiplier_h18_n32/rochester_53/L1",
+   "case_id": "confirm/multiplier_h18_n32/rochester_53/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -4468,7 +4468,7 @@
    }
   },
   {
-   "case_id": "general-lite/multiplier_h18_n32/rochester_53/L2",
+   "case_id": "confirm/multiplier_h18_n32/rochester_53/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -4517,7 +4517,7 @@
    }
   },
   {
-   "case_id": "general-lite/multiplier_h18_n32/rochester_53/L3",
+   "case_id": "confirm/multiplier_h18_n32/rochester_53/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -4566,7 +4566,7 @@
    }
   },
   {
-   "case_id": "general-lite/mcx_kg24_n16/mumbai_27/L0",
+   "case_id": "confirm/mcx_kg24_n16/mumbai_27/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4615,7 +4615,7 @@
    }
   },
   {
-   "case_id": "general-lite/mcx_kg24_n16/mumbai_27/L1",
+   "case_id": "confirm/mcx_kg24_n16/mumbai_27/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4664,7 +4664,7 @@
    }
   },
   {
-   "case_id": "general-lite/mcx_kg24_n16/mumbai_27/L2",
+   "case_id": "confirm/mcx_kg24_n16/mumbai_27/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4713,7 +4713,7 @@
    }
   },
   {
-   "case_id": "general-lite/mcx_kg24_n16/mumbai_27/L3",
+   "case_id": "confirm/mcx_kg24_n16/mumbai_27/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -4762,7 +4762,7 @@
    }
   },
   {
-   "case_id": "general-lite/ripple_adder_20/grid_7x7_u/L0",
+   "case_id": "confirm/ripple_adder_20/grid_7x7_u/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -4811,7 +4811,7 @@
    }
   },
   {
-   "case_id": "general-lite/ripple_adder_20/grid_7x7_u/L1",
+   "case_id": "confirm/ripple_adder_20/grid_7x7_u/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -4860,7 +4860,7 @@
    }
   },
   {
-   "case_id": "general-lite/ripple_adder_20/grid_7x7_u/L2",
+   "case_id": "confirm/ripple_adder_20/grid_7x7_u/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -4909,7 +4909,7 @@
    }
   },
   {
-   "case_id": "general-lite/ripple_adder_20/grid_7x7_u/L3",
+   "case_id": "confirm/ripple_adder_20/grid_7x7_u/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -4958,7 +4958,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_cnt3_5_179/mumbai_27/L0",
+   "case_id": "confirm/revlib_cnt3_5_179/mumbai_27/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5007,7 +5007,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_cnt3_5_179/mumbai_27/L1",
+   "case_id": "confirm/revlib_cnt3_5_179/mumbai_27/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5056,7 +5056,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_cnt3_5_179/mumbai_27/L2",
+   "case_id": "confirm/revlib_cnt3_5_179/mumbai_27/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5105,7 +5105,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_cnt3_5_179/mumbai_27/L3",
+   "case_id": "confirm/revlib_cnt3_5_179/mumbai_27/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5154,7 +5154,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_cnt3_5_180/mumbai_27/L0",
+   "case_id": "confirm/revlib_cnt3_5_180/mumbai_27/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5203,7 +5203,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_cnt3_5_180/mumbai_27/L1",
+   "case_id": "confirm/revlib_cnt3_5_180/mumbai_27/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5252,7 +5252,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_cnt3_5_180/mumbai_27/L2",
+   "case_id": "confirm/revlib_cnt3_5_180/mumbai_27/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5301,7 +5301,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_cnt3_5_180/mumbai_27/L3",
+   "case_id": "confirm/revlib_cnt3_5_180/mumbai_27/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5350,7 +5350,7 @@
    }
   },
   {
-   "case_id": "general-lite/adder_modular_v17_n32/rochester_53/L0",
+   "case_id": "confirm/adder_modular_v17_n32/rochester_53/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -5399,7 +5399,7 @@
    }
   },
   {
-   "case_id": "general-lite/adder_modular_v17_n32/rochester_53/L1",
+   "case_id": "confirm/adder_modular_v17_n32/rochester_53/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -5448,7 +5448,7 @@
    }
   },
   {
-   "case_id": "general-lite/adder_modular_v17_n32/rochester_53/L2",
+   "case_id": "confirm/adder_modular_v17_n32/rochester_53/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -5497,7 +5497,7 @@
    }
   },
   {
-   "case_id": "general-lite/adder_modular_v17_n32/rochester_53/L3",
+   "case_id": "confirm/adder_modular_v17_n32/rochester_53/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "medium",
@@ -5546,7 +5546,7 @@
    }
   },
   {
-   "case_id": "general-lite/multiplier_h18_n16/mumbai_27/L0",
+   "case_id": "confirm/multiplier_h18_n16/mumbai_27/L0",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5595,7 +5595,7 @@
    }
   },
   {
-   "case_id": "general-lite/multiplier_h18_n16/mumbai_27/L1",
+   "case_id": "confirm/multiplier_h18_n16/mumbai_27/L1",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5644,7 +5644,7 @@
    }
   },
   {
-   "case_id": "general-lite/multiplier_h18_n16/mumbai_27/L2",
+   "case_id": "confirm/multiplier_h18_n16/mumbai_27/L2",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5693,7 +5693,7 @@
    }
   },
   {
-   "case_id": "general-lite/multiplier_h18_n16/mumbai_27/L3",
+   "case_id": "confirm/multiplier_h18_n16/mumbai_27/L3",
    "role": "scored",
    "family": "G5",
    "size_band": "small",
@@ -5742,7 +5742,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_4mod5_v0_19/mumbai_27/L0",
+   "case_id": "confirm/revlib_4mod5_v0_19/mumbai_27/L0",
    "role": "guard",
    "family": "G5",
    "size_band": "small",
@@ -5791,7 +5791,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_4mod5_v0_19/mumbai_27/L1",
+   "case_id": "confirm/revlib_4mod5_v0_19/mumbai_27/L1",
    "role": "guard",
    "family": "G5",
    "size_band": "small",
@@ -5840,7 +5840,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_4mod5_v0_19/mumbai_27/L2",
+   "case_id": "confirm/revlib_4mod5_v0_19/mumbai_27/L2",
    "role": "guard",
    "family": "G5",
    "size_band": "small",
@@ -5889,7 +5889,7 @@
    }
   },
   {
-   "case_id": "general-lite/revlib_4mod5_v0_19/mumbai_27/L3",
+   "case_id": "confirm/revlib_4mod5_v0_19/mumbai_27/L3",
    "role": "guard",
    "family": "G5",
    "size_band": "small",
@@ -5938,7 +5938,7 @@
    }
   },
   {
-   "case_id": "general-lite/hwb12/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/hwb12/heavy_hex_d9_cz/L2",
    "role": "held_out",
    "family": "G5",
    "size_band": "medium",
@@ -5983,7 +5983,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n100/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/bv_all_ones_n100/heavy_hex_d9_cz/L0",
    "role": "scored",
    "family": "G6",
    "size_band": "large",
@@ -6032,7 +6032,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n100/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/bv_all_ones_n100/heavy_hex_d9_cz/L1",
    "role": "scored",
    "family": "G6",
    "size_band": "large",
@@ -6081,7 +6081,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n100/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/bv_all_ones_n100/heavy_hex_d9_cz/L2",
    "role": "scored",
    "family": "G6",
    "size_band": "large",
@@ -6130,7 +6130,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n100/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/bv_all_ones_n100/heavy_hex_d9_cz/L3",
    "role": "scored",
    "family": "G6",
    "size_band": "large",
@@ -6179,7 +6179,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n16/mumbai_27/L0",
+   "case_id": "confirm/bv_all_ones_n16/mumbai_27/L0",
    "role": "scored",
    "family": "G6",
    "size_band": "small",
@@ -6228,7 +6228,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n16/mumbai_27/L1",
+   "case_id": "confirm/bv_all_ones_n16/mumbai_27/L1",
    "role": "scored",
    "family": "G6",
    "size_band": "small",
@@ -6277,7 +6277,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n16/mumbai_27/L2",
+   "case_id": "confirm/bv_all_ones_n16/mumbai_27/L2",
    "role": "scored",
    "family": "G6",
    "size_band": "small",
@@ -6326,7 +6326,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n16/mumbai_27/L3",
+   "case_id": "confirm/bv_all_ones_n16/mumbai_27/L3",
    "role": "scored",
    "family": "G6",
    "size_band": "small",
@@ -6375,7 +6375,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n50/rochester_53/L0",
+   "case_id": "confirm/bv_all_ones_n50/rochester_53/L0",
    "role": "scored",
    "family": "G6",
    "size_band": "medium",
@@ -6424,7 +6424,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n50/rochester_53/L1",
+   "case_id": "confirm/bv_all_ones_n50/rochester_53/L1",
    "role": "scored",
    "family": "G6",
    "size_band": "medium",
@@ -6473,7 +6473,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n50/rochester_53/L2",
+   "case_id": "confirm/bv_all_ones_n50/rochester_53/L2",
    "role": "scored",
    "family": "G6",
    "size_band": "medium",
@@ -6522,7 +6522,7 @@
    }
   },
   {
-   "case_id": "general-lite/bv_all_ones_n50/rochester_53/L3",
+   "case_id": "confirm/bv_all_ones_n50/rochester_53/L3",
    "role": "scored",
    "family": "G6",
    "size_band": "medium",
@@ -6571,7 +6571,7 @@
    }
   },
   {
-   "case_id": "general-lite/bvlike_n100/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/bvlike_n100/heavy_hex_d9_cz/L0",
    "role": "guard",
    "family": "G6",
    "size_band": "large",
@@ -6620,7 +6620,7 @@
    }
   },
   {
-   "case_id": "general-lite/bvlike_n100/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/bvlike_n100/heavy_hex_d9_cz/L1",
    "role": "guard",
    "family": "G6",
    "size_band": "large",
@@ -6669,7 +6669,7 @@
    }
   },
   {
-   "case_id": "general-lite/bvlike_n100/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/bvlike_n100/heavy_hex_d9_cz/L2",
    "role": "zero_baseline",
    "family": "G6",
    "size_band": "large",
@@ -6718,7 +6718,7 @@
    }
   },
   {
-   "case_id": "general-lite/bvlike_n100/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/bvlike_n100/heavy_hex_d9_cz/L3",
    "role": "zero_baseline",
    "family": "G6",
    "size_band": "large",
@@ -6767,7 +6767,7 @@
    }
   },
   {
-   "case_id": "general-lite/su2_circular_n89/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/su2_circular_n89/heavy_hex_d9_cz/L0",
    "role": "scored",
    "family": "G7",
    "size_band": "large",
@@ -6812,7 +6812,7 @@
    }
   },
   {
-   "case_id": "general-lite/su2_circular_n89/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/su2_circular_n89/heavy_hex_d9_cz/L1",
    "role": "scored",
    "family": "G7",
    "size_band": "large",
@@ -6857,7 +6857,7 @@
    }
   },
   {
-   "case_id": "general-lite/su2_circular_n89/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/su2_circular_n89/heavy_hex_d9_cz/L2",
    "role": "scored",
    "family": "G7",
    "size_band": "large",
@@ -6902,7 +6902,7 @@
    }
   },
   {
-   "case_id": "general-lite/su2_circular_n89/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/su2_circular_n89/heavy_hex_d9_cz/L3",
    "role": "guard",
    "family": "G7",
    "size_band": "large",
@@ -6947,7 +6947,7 @@
    }
   },
   {
-   "case_id": "general-lite/ring_random_n8/melbourne_14_u/L0",
+   "case_id": "confirm/ring_random_n8/melbourne_14_u/L0",
    "role": "scored",
    "family": "G7",
    "size_band": "small",
@@ -6996,7 +6996,7 @@
    }
   },
   {
-   "case_id": "general-lite/ring_random_n8/melbourne_14_u/L1",
+   "case_id": "confirm/ring_random_n8/melbourne_14_u/L1",
    "role": "deterministic",
    "family": "G7",
    "size_band": "small",
@@ -7045,7 +7045,7 @@
    }
   },
   {
-   "case_id": "general-lite/ring_random_n8/melbourne_14_u/L2",
+   "case_id": "confirm/ring_random_n8/melbourne_14_u/L2",
    "role": "deterministic",
    "family": "G7",
    "size_band": "small",
@@ -7094,7 +7094,7 @@
    }
   },
   {
-   "case_id": "general-lite/ring_random_n8/melbourne_14_u/L3",
+   "case_id": "confirm/ring_random_n8/melbourne_14_u/L3",
    "role": "deterministic",
    "family": "G7",
    "size_band": "small",
@@ -7143,7 +7143,7 @@
    }
   },
   {
-   "case_id": "general-lite/ring_random_n14/melbourne_14_u/L0",
+   "case_id": "confirm/ring_random_n14/melbourne_14_u/L0",
    "role": "scored",
    "family": "G7",
    "size_band": "small",
@@ -7192,7 +7192,7 @@
    }
   },
   {
-   "case_id": "general-lite/ring_random_n14/melbourne_14_u/L1",
+   "case_id": "confirm/ring_random_n14/melbourne_14_u/L1",
    "role": "deterministic",
    "family": "G7",
    "size_band": "small",
@@ -7241,7 +7241,7 @@
    }
   },
   {
-   "case_id": "general-lite/ring_random_n14/melbourne_14_u/L2",
+   "case_id": "confirm/ring_random_n14/melbourne_14_u/L2",
    "role": "deterministic",
    "family": "G7",
    "size_band": "small",
@@ -7290,7 +7290,7 @@
    }
   },
   {
-   "case_id": "general-lite/ring_random_n14/melbourne_14_u/L3",
+   "case_id": "confirm/ring_random_n14/melbourne_14_u/L3",
    "role": "deterministic",
    "family": "G7",
    "size_band": "small",
@@ -7339,7 +7339,7 @@
    }
   },
   {
-   "case_id": "general-lite/su2_circular_n100/heavy_hex_d9_cz/L0",
+   "case_id": "confirm/su2_circular_n100/heavy_hex_d9_cz/L0",
    "role": "scored",
    "family": "G7",
    "size_band": "large",
@@ -7388,7 +7388,7 @@
    }
   },
   {
-   "case_id": "general-lite/su2_circular_n100/heavy_hex_d9_cz/L1",
+   "case_id": "confirm/su2_circular_n100/heavy_hex_d9_cz/L1",
    "role": "canary",
    "family": "G7",
    "size_band": "large",
@@ -7437,7 +7437,7 @@
    }
   },
   {
-   "case_id": "general-lite/su2_circular_n100/heavy_hex_d9_cz/L2",
+   "case_id": "confirm/su2_circular_n100/heavy_hex_d9_cz/L2",
    "role": "canary",
    "family": "G7",
    "size_band": "large",
@@ -7486,7 +7486,7 @@
    }
   },
   {
-   "case_id": "general-lite/su2_circular_n100/heavy_hex_d9_cz/L3",
+   "case_id": "confirm/su2_circular_n100/heavy_hex_d9_cz/L3",
    "role": "canary",
    "family": "G7",
    "size_band": "large",
@@ -7535,7 +7535,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bss_53+sabre/rochester_53/L0",
+   "case_id": "confirm/queko_bss_53+sabre/rochester_53/L0",
    "role": "scored",
    "family": "G8",
    "size_band": "medium",
@@ -7584,7 +7584,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bss_53+sabre/rochester_53/L1",
+   "case_id": "confirm/queko_bss_53+sabre/rochester_53/L1",
    "role": "scored",
    "family": "G8",
    "size_band": "medium",
@@ -7633,7 +7633,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bss_53+sabre/rochester_53/L2",
+   "case_id": "confirm/queko_bss_53+sabre/rochester_53/L2",
    "role": "scored",
    "family": "G8",
    "size_band": "medium",
@@ -7682,7 +7682,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bss_53+sabre/rochester_53/L3",
+   "case_id": "confirm/queko_bss_53+sabre/rochester_53/L3",
    "role": "scored",
    "family": "G8",
    "size_band": "medium",
@@ -7731,7 +7731,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bigd_20+sabre/tokyo_20/L0",
+   "case_id": "confirm/queko_bigd_20+sabre/tokyo_20/L0",
    "role": "scored",
    "family": "G8",
    "size_band": "small",
@@ -7780,7 +7780,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bigd_20+sabre/tokyo_20/L1",
+   "case_id": "confirm/queko_bigd_20+sabre/tokyo_20/L1",
    "role": "scored",
    "family": "G8",
    "size_band": "small",
@@ -7829,7 +7829,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bigd_20+sabre/tokyo_20/L2",
+   "case_id": "confirm/queko_bigd_20+sabre/tokyo_20/L2",
    "role": "scored",
    "family": "G8",
    "size_band": "small",
@@ -7878,7 +7878,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bigd_20+sabre/tokyo_20/L3",
+   "case_id": "confirm/queko_bigd_20+sabre/tokyo_20/L3",
    "role": "scored",
    "family": "G8",
    "size_band": "small",
@@ -7927,7 +7927,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bntf_54+sabre/sycamore_54/L0",
+   "case_id": "confirm/queko_bntf_54+sabre/sycamore_54/L0",
    "role": "scored",
    "family": "G8",
    "size_band": "medium",
@@ -7976,7 +7976,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bntf_54+sabre/sycamore_54/L1",
+   "case_id": "confirm/queko_bntf_54+sabre/sycamore_54/L1",
    "role": "scored",
    "family": "G8",
    "size_band": "medium",
@@ -8025,7 +8025,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bntf_54+sabre/sycamore_54/L2",
+   "case_id": "confirm/queko_bntf_54+sabre/sycamore_54/L2",
    "role": "scored",
    "family": "G8",
    "size_band": "medium",
@@ -8074,7 +8074,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bntf_54+sabre/sycamore_54/L3",
+   "case_id": "confirm/queko_bntf_54+sabre/sycamore_54/L3",
    "role": "scored",
    "family": "G8",
    "size_band": "medium",
@@ -8123,7 +8123,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bss_53/rochester_53/L0",
+   "case_id": "confirm/queko_bss_53/rochester_53/L0",
    "role": "guard",
    "family": "G8",
    "size_band": "medium",
@@ -8172,7 +8172,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bss_53/rochester_53/L1",
+   "case_id": "confirm/queko_bss_53/rochester_53/L1",
    "role": "deterministic",
    "family": "G8",
    "size_band": "medium",
@@ -8221,7 +8221,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bss_53/rochester_53/L2",
+   "case_id": "confirm/queko_bss_53/rochester_53/L2",
    "role": "deterministic",
    "family": "G8",
    "size_band": "medium",
@@ -8270,7 +8270,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bss_53/rochester_53/L3",
+   "case_id": "confirm/queko_bss_53/rochester_53/L3",
    "role": "deterministic",
    "family": "G8",
    "size_band": "medium",
@@ -8319,7 +8319,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bigd_20/tokyo_20/L0",
+   "case_id": "confirm/queko_bigd_20/tokyo_20/L0",
    "role": "guard",
    "family": "G8",
    "size_band": "small",
@@ -8368,7 +8368,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bigd_20/tokyo_20/L1",
+   "case_id": "confirm/queko_bigd_20/tokyo_20/L1",
    "role": "deterministic",
    "family": "G8",
    "size_band": "small",
@@ -8417,7 +8417,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bigd_20/tokyo_20/L2",
+   "case_id": "confirm/queko_bigd_20/tokyo_20/L2",
    "role": "deterministic",
    "family": "G8",
    "size_band": "small",
@@ -8466,7 +8466,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bigd_20/tokyo_20/L3",
+   "case_id": "confirm/queko_bigd_20/tokyo_20/L3",
    "role": "deterministic",
    "family": "G8",
    "size_band": "small",
@@ -8515,7 +8515,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bntf_54/sycamore_54/L0",
+   "case_id": "confirm/queko_bntf_54/sycamore_54/L0",
    "role": "guard",
    "family": "G8",
    "size_band": "medium",
@@ -8564,7 +8564,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bntf_54/sycamore_54/L1",
+   "case_id": "confirm/queko_bntf_54/sycamore_54/L1",
    "role": "deterministic",
    "family": "G8",
    "size_band": "medium",
@@ -8613,7 +8613,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bntf_54/sycamore_54/L2",
+   "case_id": "confirm/queko_bntf_54/sycamore_54/L2",
    "role": "deterministic",
    "family": "G8",
    "size_band": "medium",
@@ -8662,7 +8662,7 @@
    }
   },
   {
-   "case_id": "general-lite/queko_bntf_54/sycamore_54/L3",
+   "case_id": "confirm/queko_bntf_54/sycamore_54/L3",
    "role": "deterministic",
    "family": "G8",
    "size_band": "medium",
@@ -8711,7 +8711,7 @@
    }
   },
   {
-   "case_id": "general-lite/long_2q_sequence/rochester_53_u/L2",
+   "case_id": "confirm/long_2q_sequence/rochester_53_u/L2",
    "role": "canary",
    "family": "canary",
    "size_band": null,
@@ -8760,7 +8760,7 @@
    }
   },
   {
-   "case_id": "general-lite/long_2q_sequence/rochester_53_u/L3",
+   "case_id": "confirm/long_2q_sequence/rochester_53_u/L3",
    "role": "canary",
    "family": "canary",
    "size_band": null,
@@ -8809,7 +8809,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_qft_n16/a2a_clifford_rz_16/L0",
+   "case_id": "confirm/a2a_qft_n16/a2a_clifford_rz_16/L0",
    "role": "deterministic",
    "family": "G1",
    "size_band": "small",
@@ -8864,7 +8864,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_qft_n16/a2a_clifford_rz_16/L1",
+   "case_id": "confirm/a2a_qft_n16/a2a_clifford_rz_16/L1",
    "role": "deterministic",
    "family": "G1",
    "size_band": "small",
@@ -8919,7 +8919,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_qft_n16/a2a_clifford_rz_16/L2",
+   "case_id": "confirm/a2a_qft_n16/a2a_clifford_rz_16/L2",
    "role": "deterministic",
    "family": "G1",
    "size_band": "small",
@@ -8974,7 +8974,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_qft_n16/a2a_clifford_rz_16/L3",
+   "case_id": "confirm/a2a_qft_n16/a2a_clifford_rz_16/L3",
    "role": "deterministic",
    "family": "G1",
    "size_band": "small",
@@ -9029,7 +9029,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_trotter_n16/a2a_clifford_rz_16/L0",
+   "case_id": "confirm/a2a_trotter_n16/a2a_clifford_rz_16/L0",
    "role": "deterministic",
    "family": "G2",
    "size_band": "small",
@@ -9084,7 +9084,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_trotter_n16/a2a_clifford_rz_16/L1",
+   "case_id": "confirm/a2a_trotter_n16/a2a_clifford_rz_16/L1",
    "role": "deterministic",
    "family": "G2",
    "size_band": "small",
@@ -9139,7 +9139,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_trotter_n16/a2a_clifford_rz_16/L2",
+   "case_id": "confirm/a2a_trotter_n16/a2a_clifford_rz_16/L2",
    "role": "deterministic",
    "family": "G2",
    "size_band": "small",
@@ -9194,7 +9194,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_trotter_n16/a2a_clifford_rz_16/L3",
+   "case_id": "confirm/a2a_trotter_n16/a2a_clifford_rz_16/L3",
    "role": "deterministic",
    "family": "G2",
    "size_band": "small",
@@ -9249,7 +9249,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_qaoa_n16/a2a_clifford_rz_16/L0",
+   "case_id": "confirm/a2a_qaoa_n16/a2a_clifford_rz_16/L0",
    "role": "deterministic",
    "family": "G3",
    "size_band": "small",
@@ -9304,7 +9304,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_qaoa_n16/a2a_clifford_rz_16/L1",
+   "case_id": "confirm/a2a_qaoa_n16/a2a_clifford_rz_16/L1",
    "role": "deterministic",
    "family": "G3",
    "size_band": "small",
@@ -9359,7 +9359,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_qaoa_n16/a2a_clifford_rz_16/L2",
+   "case_id": "confirm/a2a_qaoa_n16/a2a_clifford_rz_16/L2",
    "role": "deterministic",
    "family": "G3",
    "size_band": "small",
@@ -9414,7 +9414,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_qaoa_n16/a2a_clifford_rz_16/L3",
+   "case_id": "confirm/a2a_qaoa_n16/a2a_clifford_rz_16/L3",
    "role": "deterministic",
    "family": "G3",
    "size_band": "small",
@@ -9469,7 +9469,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_multiplier_n16/a2a_clifford_rz_16/L0",
+   "case_id": "confirm/a2a_multiplier_n16/a2a_clifford_rz_16/L0",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -9524,7 +9524,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_multiplier_n16/a2a_clifford_rz_16/L1",
+   "case_id": "confirm/a2a_multiplier_n16/a2a_clifford_rz_16/L1",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -9579,7 +9579,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_multiplier_n16/a2a_clifford_rz_16/L2",
+   "case_id": "confirm/a2a_multiplier_n16/a2a_clifford_rz_16/L2",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -9634,7 +9634,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_multiplier_n16/a2a_clifford_rz_16/L3",
+   "case_id": "confirm/a2a_multiplier_n16/a2a_clifford_rz_16/L3",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -9689,7 +9689,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_adder_modular_n16/a2a_clifford_rz_16/L0",
+   "case_id": "confirm/a2a_adder_modular_n16/a2a_clifford_rz_16/L0",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -9744,7 +9744,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_adder_modular_n16/a2a_clifford_rz_16/L1",
+   "case_id": "confirm/a2a_adder_modular_n16/a2a_clifford_rz_16/L1",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -9799,7 +9799,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_adder_modular_n16/a2a_clifford_rz_16/L2",
+   "case_id": "confirm/a2a_adder_modular_n16/a2a_clifford_rz_16/L2",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -9854,7 +9854,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_adder_modular_n16/a2a_clifford_rz_16/L3",
+   "case_id": "confirm/a2a_adder_modular_n16/a2a_clifford_rz_16/L3",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -9909,7 +9909,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_mcx_n16/a2a_clifford_rz_16/L0",
+   "case_id": "confirm/a2a_mcx_n16/a2a_clifford_rz_16/L0",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -9964,7 +9964,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_mcx_n16/a2a_clifford_rz_16/L1",
+   "case_id": "confirm/a2a_mcx_n16/a2a_clifford_rz_16/L1",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -10019,7 +10019,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_mcx_n16/a2a_clifford_rz_16/L2",
+   "case_id": "confirm/a2a_mcx_n16/a2a_clifford_rz_16/L2",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
@@ -10074,7 +10074,7 @@
    }
   },
   {
-   "case_id": "general-lite/a2a_mcx_n16/a2a_clifford_rz_16/L3",
+   "case_id": "confirm/a2a_mcx_n16/a2a_clifford_rz_16/L3",
    "role": "deterministic",
    "family": "G5",
    "size_band": "small",
