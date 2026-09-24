@@ -38,12 +38,12 @@ be frozen before the first candidate is evaluated (section 12 lists them).
 
 1. **What gets built.** One command,
    `qiskit-transpile-bench compare --baseline <folder> --evolved <folder>`, snapshots and
-   builds both Qiskit folders in isolated environments, compiles frozen workloads with
-   both on one fixed block of 100 transpiler seeds, verifies the outputs, and prints one
+   builds both Qiskit folders in isolated environments, compiles the chosen profile's frozen
+   workload with both on one fixed block of 100 transpiler seeds, verifies the outputs, and prints one
    of five verdicts: `PASS`, `NO_IMPROVEMENT`, `CONSTRAINT_VIOLATION`, `INCONCLUSIVE` or
    `ERROR`. Of those, only `PASS` exits with code 0. The only other choice the user makes
-   is the profile (`--profile`), which selects the workload: `iterations-profile`, the small panel
-   for iterating, or `confirm-profile`, the broad panel for the final check.
+   is the profile (`--profile`), which selects the workload: `iterations-profile`, the small workload
+   for iterating, or `confirm-profile`, the broad workload for the final check.
 2. **One objective, hard constraints, one reference.** The objective is lower **native
    two-qubit depth (`D2`)**. Native two-qubit gate count (`N2`), compilation time, peak
    memory (confirm profile) and correctness are constraints. It is never a weighted sum: a
@@ -68,7 +68,7 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    The same circuits on `cx`/`ecr` targets, two canaries and a 19-case timing panel are
    guards. The *confirm* profile is the broad check: 38 scored input groups (133 cases)
    and 14 guard inputs drawn entirely from Qiskit's in-tree benchmark suite — all eight
-   workload families at levels 0–3 on fourteen frozen targets (heavy-hex and grid
+   circuit families at levels 0–3 on fourteen frozen targets (heavy-hex and grid
    classes, one of them directed; `cx`/`cz` scored, `ecr` guarded; an all-to-all
    control), at about 87 CPU-minutes of quality compiles per revision.
 6. **Seeds.** A seed is the non-negative integer the worker passes as `seed_transpiler`
@@ -86,7 +86,7 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    against a candidate being selected on the seeds and circuits it is judged on by the
    choice of profile, not by a second stage inside a run. Iterate with `iterations-profile`
    (three circuits, about ten CPU-minutes per run); when a change looks good there, run
-   `confirm-profile` once. Its panel is mostly circuits the iteration loop never
+   `confirm-profile` once. Its workload is mostly circuits the iteration loop never
    contained, so a gain that was an artifact of tuning against those three circuits does
    not carry over to the rest of it (the report also prints the score with the three
    removed). Section 1 states the one rule this depends on: the confirm run is a check, not
@@ -109,7 +109,7 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    available only to candidates confined to layout and routing; anything touching the
    optimization stage or two-qubit synthesis tops out at `INCONCLUSIVE` pending the review
    workflow of section 8.6. (At levels 0–1 the complete pipeline verified on all three
-   100-qubit circuits; in `confirm-profile` the small half of the panel is verified exactly
+   100-qubit circuits; in `confirm-profile` the small half of the scored panel is verified exactly
    at every level by C1-lite, 5.3, which gives that review real evidence.)
 11. **Noise drives the design.** At the baseline the per-seed standard deviation of
     `ln D2` is 4–9% (1.4–3.9% for `N2`). With 100 seeds the iterations score's standard error
@@ -137,7 +137,7 @@ Numbers at a glance (baseline facts and planning estimates; sources in the secti
 | Routing replay on the scored circuits | 24 of 24 prototype compiles verified (levels 0–3); both injected defects rejected; ≤0.15 s each | 5.7 |
 | Clifford oracle, complete default pipeline | 3 of 3 at level 0, 3 of 3 at level 1 (`cz`); 1 of 9 at level 2. Prefix with substituted synthesis: 9 of 9 | 5.8 |
 | Indicative compile time, level 2 | 0.2–1.0 s scored circuits; 41 s `hwb12`; 5 s / 33 s for an 89-qubit ring at level 2 / 3 | 3.9, 7.4 |
-| `confirm-profile` panel | 38 scored input groups, 133 scored cases, 14 guard inputs, 14 frozen targets (11 scored); every input from `test/benchmarks/` | 3.7 |
+| `confirm-profile` workload | 38 scored input groups, 133 scored cases, 14 guard inputs, 14 frozen targets (11 scored); every input from `test/benchmarks/` | 3.7 |
 | `confirm-profile` cost | ≈87 CPU-minutes of quality compiles per revision (×2 with the routing replay, plus ≈30 for C1-lite), so ≈3.5 CPU-hours for a candidate once the baseline is cached; < 3 exclusive hours of cost measurement per decision | 3.7, 3.9 |
 | `confirm-profile` standard error | ≈0.2% on the 100-seed block (planning estimate; inputs, not seeds, are the binding constraint) | 3.7 |
 | Seed-blind inputs in the suite | Path- and ring-shaped circuits are deterministic at levels 1–3 (VF2 embeds them); `time_qft_16` cancels to `D2` = 0 at levels 2–3 | 3.7 |
@@ -160,36 +160,36 @@ checks (section 5.5) that can block acceptance but never earn it.
 construction and parsing speed, fault-tolerant (Clifford+T) pipelines, approximate
 synthesis as an objective.
 
-**What a verdict means.** An iterations `PASS` means *iterations-panel native two-qubit depth
+**What a verdict means.** An iterations `PASS` means *native two-qubit depth on the iterations scored panel
 improved at level 2 on the declared target, within the stated count, time and correctness
 limits*. A confirm `PASS` means *native two-qubit depth improved across the eight
-declared workload families, levels 0–3, heavy-hex and grid-class targets and the `cx` and
-`cz` bases, on the fixed public panel of Qiskit's in-tree benchmark circuits, within the
+declared circuit families, levels 0–3, heavy-hex and grid-class targets and the `cx` and
+`cz` bases, on the fixed public workload of Qiskit's in-tree benchmark circuits, within the
 stated count, time, memory and correctness limits* (3.7). Neither means every circuit
-improves, hardware runs faster, or unseen workload families improve. `NO_IMPROVEMENT` means improvement was not demonstrated under
+improves, hardware runs faster, or unseen circuit families improve. `NO_IMPROVEMENT` means improvement was not demonstrated under
 this policy, not that the revisions are equivalent.
 
 **Why two profiles, and how they are meant to be used.** Seeds and inputs answer
 different questions. A hundred seeds of three circuits are still three circuits (6.6):
 more seeds shrink the search noise on those inputs and say nothing about other circuits,
 sizes, topologies or levels. The iterations profile is the iteration loop — about ten
-CPU-minutes per revision, level 2 only, a panel-specific claim. The confirm profile
+CPU-minutes per revision, level 2 only, a claim about its three circuits. The confirm profile
 (3.7) is the check: every family, level and topology class the in-tree suite can
 supply, at about ninety CPU-minutes per revision, with the gaps in its coverage declared
 case by case. A `PASS` names its profile.
 
 The profiles are also the harness's only protection against selection bias. Every
-comparison uses the same fixed seed block and the same frozen panel, so a candidate that
+comparison uses the same fixed seed block and the same frozen workload, so a candidate that
 is edited, compared, edited again and compared again on one profile is being selected on
 that profile's seeds and circuits, and after enough rounds a neutral change can look like
 a gain there by luck (4.10). The intended workflow is therefore: **iterate on the iterations
 profile; when a change looks good, run the confirm profile once as the check.** Its
-panel is 38 input groups of which the iteration loop contained three, so the selection
+scored panel is 38 input groups of which the iteration loop contained three, so the selection
 bias does not carry over to the rest. Two rules keep that sound. The check profile must be
 mostly circuits the loop profile does not contain — true of the profiles defined here,
 and to be kept true when they are revised. And **the check is not the loop**: a
 candidate that fails the confirm run goes back to the iteration loop, not to another round
-of edits judged on the confirm panel. The report prints how many decisions the results root
+of edits judged on the confirm profile. The report prints how many decisions the results root
 already holds for the manifest, so that drift is at least visible. No profile inside one
 run compares a candidate on seeds or circuits it has not seen before; that is what the
 confirm profile is for.
@@ -212,8 +212,11 @@ regression that no single comparison flagged.
 | Revision | One Qiskit source tree, snapshotted and built into its own environment |
 | Baseline / evolved | The two folders given on the command line: the reference of every test, and the candidate |
 | Case | One circuit × one target × one compile configuration, including the optimization level |
-| Input group | All cases derived from the same underlying circuit instance (its target, basis, level and parameter variants). The unit of independence for the bootstrap |
-| Panel | A set of cases evaluated together: scored, guard, canary, timing, memory |
+| Fixture | A circuit file: one frozen input circuit that this repository stores in `fixtures/circuits/` as a canonical operation list, with its SHA-256 and a `PROVENANCE.md` entry. A curation script writes it once (3.8); no run regenerates or edits it. A fixture is only *what* gets compiled — it fixes no target, level or seed. Most fixtures are the inputs of cases (`qft_n100`); the rest feed correctness checks only: the Clifford variants of C7 (5.8) and the small circuits of C0–C5. Frozen targets sit beside fixtures in `fixtures/targets/` but are called targets. Upstream QASM files and constructors are the sources fixtures are curated from, not fixtures |
+| Input group | Within one profile, every case compiled from one circuit instance: normally one fixture, plus any declared variant fixture of it (the symbolic form of `qaoa_complete_n8`); named after that fixture. It answers *which cases are the same input?* Another target, basis, level, compile method, role or seed never makes a new group, so each group counts once in the coverage rule of 3.7 and is resampled whole by the bootstrap of 4.7 (full rule in 3.1) |
+| Panel | It answers *which cases are scored together?* A panel is the set of cases that one rule turns into one number — a quality score with its `SE`, or a cost `ln_panel` — using one weight vector that sums to one and, for quality, every seed of the block; one missing observation invalidates the whole panel. Quality panels: each profile's primary scored panel (iterations: the three `cz` cases; confirm: the 133 scored cases) and the `cx` and `ecr` basis-guard panels of 3.4. Cost panels: T1–T19 (3.6), the multi-seed companion, the preset-construction panel, and in the confirm profile the confirm timing panel and the memory panel. Canaries and deterministic, zero-baseline and per-case guards are judged one case at a time and belong to no panel |
+| Summary | A subset of one panel, such as a family or a level, scored with its weights renormalized (4.3). It is not a panel of its own |
+| Workload | It answers *what does this profile run?* The workload is every case the profile's manifest lists, in every role (scored, guard, deterministic, zero-baseline, canary, timing, memory), together with the fixtures and frozen targets those cases need. Every case in it either belongs to a panel or is judged on its own. The profile fixes the workload, not the user or the run: choosing a profile chooses its workload, the profile's policy holds the thresholds that judge it, and changing it means a new manifest version. The circuits the correctness checks bring along (the C1–C5 fixtures, the C7 Clifford variants) are checks, not workload. Iterations: the three scored circuits on the `cz`, `cx` and `ecr` targets, its canaries and its cost panels. Confirm: 38 scored input groups (133 scored cases), 14 guard inputs and its cost panels (3.7). Not to be confused with a *family* (G1–G8), a kind of circuit that a workload draws inputs from |
 | Profile | A versioned bundle of manifest (cases, weights, roles) and policy (thresholds): `iterations-profile`, `confirm-profile`. The one choice the user makes per run |
 | Transpiler seed | The non-negative integer passed as `seed_transpiler` for one compile of one case by one revision: one seed, one compile. The replication dimension of every quality panel (section 6); never a fixture-generation seed, since inputs are frozen files |
 | Seed block | 100 consecutive transpiler seeds with one declared purpose: `B0`, the comparison block every decision uses; `KB1`, `KB2`, the baseline-only calibration blocks (section 6.3) |
@@ -223,6 +226,42 @@ regression that no single comparison flagged.
 | Upstream | Qiskit's own in-tree benchmark suite (`test/benchmarks/`) at the baseline commit, from which most fixtures are curated |
 | A/A comparison | The same revision measured against itself (two independent builds); calibrates noise |
 | RSS, `dt` | Resident set size (process memory); the target's time resolution in seconds |
+
+**Fixture, case, input group, panel, workload.** These five terms describe the same
+inputs at different levels of grouping, and each answers its own question:
+
+- A **fixture** is the circuit file: *what* is compiled.
+- A **case** is one fixture compiled one way: on one target, at one level, with one compile
+  configuration. One fixture gives many cases.
+- An **input group** collects every case of one fixture (and of its declared variants).
+  It tells the evaluator which cases are *not* independent evidence, because they all
+  pose the same circuit. Fixtures and groups correspond almost one to one; one group
+  holds many cases.
+- A **panel** collects the cases that one rule scores together. It is cut from cases, not
+  from fixtures or groups. So the cases of one group usually land in several panels, and
+  some land in none. One panel holds cases of many groups. The group still matters inside
+  a scored panel: the confirm weight tree hands weight down through the group to its cases
+  (3.7), and the bootstrap resamples groups whole (4.7).
+- A **workload** is everything one profile runs: all of its groups' cases, spread over its
+  panels, plus the cases it judges one at a time. It is the outermost level. The same
+  fixture can appear in two workloads, but each workload has its own groups and its own
+  panels.
+
+Example, iterations profile. The fixture `qft_n100` (curated from upstream
+`qft_N100.qasm`) opens the input group `qft_n100`, whose cases land as follows:
+
+| Case of group `qft_n100` | Panel |
+| --- | --- |
+| `iterations/qft_n100/heavy_hex_d9_cz/L2` | Primary scored panel, with the matching cases of the `square_heisenberg_n100` and `qaoa_ba_n100_3reps` groups |
+| `iterations/qft_n100/heavy_hex_d9_cx/L2` | `cx` basis-guard panel |
+| `iterations/qft_n100/heavy_hex_d9_ecr/L2` | `ecr` basis-guard panel |
+| Its three `timing_reuse` cases among T11–T19 | Timing panel T1–T19 |
+
+Its Clifford variant is a separate fixture that only C7 compiles; it is neither a case nor
+a member of any group. In the confirm profile the same fixture opens its own `qft_n100`
+group (groups are per profile). Its four scored cases (levels 0–3 on `heavy_hex_d9_cz`)
+sit in the confirm scored panel, and its level-2 `cx` and `ecr` cases sit in the retained
+basis-guard panels.
 
 ## 2. Architecture
 
@@ -480,6 +519,35 @@ native basis, optimization level, input-group ID, weight, oracle, timeout and
 measurement modes (full field list in the appendix). Unsupported combinations are declared
 with a reason **before** evaluation; a candidate failing on a case is never an exclusion.
 
+**Input group.** The input-group ID names the circuit instance a case was compiled from,
+and every case compiled from that instance carries the same ID: the instance on each of
+its targets and native bases, at every optimization level, in every declared variant and
+in every role. An *instance* is one frozen input as generated or imported — one call of
+an upstream constructor with its arguments fixed, or one imported file — and two inputs
+of a family are different instances only when they differ as circuits, by what the
+family table of 3.7 lists under "instances vary by": width, depth, repetitions, a
+lattice or graph, a Boolean function, a secret pattern, an independently drawn random
+matrix. So `qv_n14_d14` and `qv_n14_d14_s10` are two groups (two frozen draws) and
+`ripple_adder_10` and `ripple_adder_20` are two groups (two widths), whereas each QUEKO
+instance is one group holding its scored explicit-SABRE cases and its default-method
+deterministic guards as two declared variants, `qft_n100` on `heavy_hex_d9_cx` and
+`_ecr` is a pair of basis guards inside the `qft_n100` group, and the symbolic form of
+`qaoa_complete_n8` is a variant of that group, not an input of its own. Nothing that
+re-poses the same routing problem opens a new group: another target, basis or level, a
+wire relabeling, a binding of the same parameters, an explicit layout or routing method,
+a different role, a fresh transpiler seed. Counting any of these as an input would let
+one circuit vote several times in the coverage rule and the bootstrap.
+
+The `variant` field records the declared variant (`numeric` or `symbolic` for the parameter form,
+`sabre_methods` or `default_methods` for the QUEKO compile methods); the group ID is the
+fixture name and follows the profile name in the case ID, with the variant suffixed when
+it is not the default one (`confirm/queko_bss_53+sabre/rochester_53/L2`). A group is
+*scored* when at least one of its cases is: the independent-inputs rule of 3.7 counts
+scored groups per family/size cell, and the bootstrap of 4.7 resamples scored groups
+whole, each carrying its scored cases with their frozen weights. A guard-only group
+(`revlib_4mod5_v0_19`) or a deterministic-only one (the all-to-all controls) counts for
+neither.
+
 Two options are pinned on every scored and timed case: `approximation_degree=1.0` (exact
 synthesis) and `qubits_initially_zero=True` (Qiskit's default contract, the one users get).
 Semantic oracles declare their own contract where they need the stronger all-input one
@@ -587,7 +655,7 @@ Two points about these circuits:
   found, compared exactly (4.5). With explicit SABRE methods they are seed-sensitive and
   far from the embedded result, so they carry routing signal. QUEKO's known-optimal depth
   is an absolute yardstick only once its reference basis, allowed rewrites and depth model
-  are matched; until then these are fixed regression workloads with no optimality claim.
+  are matched; until then these are fixed regression inputs with no optimality claim.
 - Upstream's quantum-volume generator seeds the pairings but **not** the matrices, so the
   matrices are generated once with a seeded generator and frozen as data.
 
@@ -641,8 +709,8 @@ family, where it is scored at levels 0–2 and guarded at level 3 (3.7).
 | T7–T10 | `long_2q_sequence` with its loose legacy constraints | `timing_e2e` | 0, 1, 2, 3 | 0 |
 | T11–T19 | The three scored circuits × `cx`, `cz`, `ecr` | `timing_reuse` | 2 | 1234567845 |
 
-T1–T2 expose wrapper and fixed overhead that large workloads hide; T3–T10 time complete
-compilation across levels; T11–T19 time repeated compilation of the scored workloads with
+T1–T2 expose wrapper and fixed overhead that large circuits hide; T3–T10 time complete
+compilation across levels; T11–T19 time repeated compilation of the scored circuits with
 preset construction outside the clock. T1–T2 omit the level, as upstream and users of the
 bare wrapper do; each has a report-only companion with the level explicit (2) and each
 revision's resolved default is recorded, so a changed default is reported as a
@@ -669,7 +737,7 @@ runs once when a change looks good on the iterations profile. It is judged by th
 acceptance rules of 8.3 with the weight, summary and guard machinery of section 4, and it
 is built entirely from the circuits, targets and configurations that already exist in Qiskit's
 in-tree benchmark suite, `test/benchmarks/` at the baseline commit. This section first
-defines the workload families and the coverage dimensions every case declares, then the
+defines the circuit families and the coverage dimensions every case declares, then the
 manifest itself: inputs, targets, roles, weights, seeds, cost panels, correctness, the
 claim a `PASS` makes and the budget.
 
@@ -692,27 +760,27 @@ never improve for a layout or routing candidate — which would distort the brea
 The default-method variants stay as deterministic guards.
 
 **Coverage dimensions.** Every case declares the dimensions below. The manifest generator
-(M3-3) checks the panel against the standard in the right-hand column and lists every
-cell the panel does not fill, with the reason; the gaps of this manifest are declared
-under "Coverage" below. A fully covered panel is the standard, not a profile: no such
-panel exists, and building one is not planned.
+(M3-3) checks the workload against the standard in the right-hand column and lists every
+cell the workload does not fill, with the reason; the gaps of this manifest are declared
+under "Coverage" below. A fully covered workload is the standard, not a profile: no such
+workload exists, and building one is not planned.
 
 | Dimension | Standard |
 | --- | --- |
 | Size band | Small 4–16, medium 17–64, large 65–100 logical qubits, wherever the family supports the band |
-| Independent inputs | At least three input groups per supported family/size cell. New transpiler seeds, wire relabelings and basis/level variants are not new inputs |
+| Independent inputs | At least three scored input groups per supported family/size cell (3.1). New transpiler seeds, wire relabelings, parameter bindings, compile-method variants and basis/level variants are not new inputs |
 | Topology | Heavy-hex, line, 2D grid, plus an all-to-all control; each family on at least two sparse classes unless fixture-fixed |
 | Basis and direction | `cx`, `cz`, `ecr`; one supported asymmetric directed target |
 | Occupancy | Both fully occupied targets and targets with spare qubits |
 | Level | 0, 1, 2 and 3 for every supported input/target pair |
 
-**Principle.** Every input is an existing fixture or constructor of the upstream suite and
+**Principle.** Every input is an existing QASM file or constructor of the upstream suite and
 every target is one the suite already builds; no new circuit generator and no new target
 family is written. Each case records a provenance grade: **A**, the exact upstream
 configuration (circuit, target, basis and, where upstream fixes it, level); **B**, an
 upstream circuit constructor paired with an upstream target it is not benchmarked on
 (the fault-tolerance constructors of `utils.py` placed on the Mumbai, Rochester and
-heavy-hex targets, and the DTC fixture on heavy-hex) — this is what gives G2, G3 and G5
+heavy-hex targets, and the DTC QASM file on heavy-hex) — this is what gives G2, G3 and G5
 more than one input on a sparse target; **C**, an upstream constructor at a width it is not
 benchmarked at (`bv_all_ones` at 16 and 50 qubits). Where upstream runs a configuration at
 one level, the confirm manifest runs it at levels 0–3 like every other case. Every input and
@@ -762,7 +830,7 @@ Rochester, which are heavy-hex fragments), `grid` (the 5×5 and 7×7 grids, Syca
 square lattice, Tokyo's grid with diagonals, Melbourne's 2×7 ladder) and `all_to_all`.
 The suite has no `line` target; the class is declared unsupported.
 
-**Scored cases** (38 input groups, 133 cases; one panel, every case compiled in every
+**Scored cases** (38 input groups, 133 cases; one scored panel, every case compiled in every
 run). The size band counts the logical qubits that carry at least one gate — three
 RevLib files and the Tokyo QUEKO instance declare wider registers than they use. `D2` is
 the range over seeds 0–2 at the level shown; compile time is one serial compile. The
@@ -897,14 +965,14 @@ beside the tree:
   profile incomplete until it is redesigned; its weight is never silently redistributed.
 
 **Seeds.** Every scored case uses the whole 100-seed comparison block (6.3); the smaller
-counts belong to the guard roles named in the tables. The panel is finite and public,
+counts belong to the guard roles named in the tables. The workload is finite and public,
 and there is no held-back part of it: a candidate compared on it repeatedly, with edits
 in between, is being tuned on it. The intended use is the workflow of section 1 — the
 iterations profile is the loop, this profile is the check — and two report-only numbers
 make drift visible: the number of decisions the results root holds for this manifest,
 and the confirm score recomputed over the 35 input groups the iterations profile does not
 contain (the ◆ inputs, 18.2% of the weight, removed and the rest renormalized). A
-candidate whose gain lives mostly in those three inputs has improved the iterations panel,
+candidate whose gain lives mostly in those three inputs has improved the iterations scored panel,
 not the suite. That is the
 confirm profile's limit: it detects a gain that does not carry beyond the loop's circuits;
 it does not estimate improvement on circuits outside the suite.
@@ -921,7 +989,7 @@ one for each of the iterations profile's cost panels, the per-case caps and the 
 summaries are reported, not guarded (4.9).
 
 **Correctness.** C0 and the routing replay C6 run on every scored output at every level;
-C7's Clifford variants remain those of the three 100-qubit circuits. The confirm panel adds
+C7's Clifford variants remain those of the three 100-qubit circuits. The confirm profile adds
 **C1-lite** (5.3): for every scored output whose active physical qubits number at most
 25 — the small-band inputs and `ripple_adder_10`, 18 of the 38 scored input groups (at
 the baseline their outputs use 5 to 25 physical qubits over levels 0–3 and seeds 0–2) —
@@ -932,13 +1000,13 @@ CPU-minutes per revision and block. Those outputs are `verified` for every stage
 levels 2–3, which the 100-qubit outputs are not (5.9). The stage-coverage consequence is
 unchanged for the medium and large cases: a candidate that changes the optimization
 stage still tops out at `INCONCLUSIVE`, but the review workflow (8.6) now has exact
-evidence on half the panel.
+evidence on half the scored panel.
 
 **Claim.** A `confirm-profile` `PASS` means *native two-qubit depth improved across the
-eight declared workload families, levels 0–3, heavy-hex and grid-class targets and the
-`cx` and `cz` bases (`ecr` guarded), on the fixed public panel of Qiskit's in-tree
+eight declared circuit families, levels 0–3, heavy-hex and grid-class targets and the
+`cx` and `cz` bases (`ecr` guarded), on the fixed public workload of Qiskit's in-tree
 benchmark circuits, within the count, time, memory and correctness limits*. It says
-nothing about circuits outside that panel.
+nothing about circuits outside that workload.
 
 **Budget (measured at the baseline, serial).** Quality: 15,000 compiles and about 87
 CPU-minutes per revision — scored cases 70, guards 17 of which `hwb12` is 16.5 — before
@@ -968,7 +1036,7 @@ compile in seconds rather than minutes. Each is a new manifest version, never an
 Fixtures are created once by scripts under `tools/curate/`, run in the verifier
 environment, and committed as canonical data with provenance and license retained.
 
-| Fixtures | Source in the Qiskit tree at commit `0131cbbcc` |
+| Fixtures and targets | Source in the Qiskit tree at commit `0131cbbcc` |
 | --- | --- |
 | `qft_n100`, `square_heisenberg_n100`, `qaoa_ba_n100_3reps`, `hwb12`, `long_2q_sequence` | `test/benchmarks/qasm/`: `qft_N100.qasm`, `square_heisenberg_N100.qasm`, `qaoa_barabasi_albert_N100_3reps.qasm`, `hwb12.qasm`, `test_eoh_qasm.qasm` |
 | QUEKO circuits and their Tokyo, Rochester and Sycamore edge lists | `test/benchmarks/qasm/`: `20QBT_45CYC_.0D1_.1D2_3.qasm`, `53QBT_100CYC_QSE_3.qasm`, `54QBT_25CYC_QSE_3.qasm`; edge lists inline in `test/benchmarks/queko.py` |
@@ -1006,7 +1074,7 @@ used.
 | Item | Indicative cost |
 | --- | --- |
 | One level-2 compile | QFT 1.0 s, QAOA 0.85 s, Heisenberg 0.2 s; level 0 is 6–28× faster, level 3 about 1.3–1.4× slower |
-| Iterations quality panel, scored + basis guards (9 cases × 100 seeds) | ≈10 CPU-minutes per revision; the routing replay's two truncated compiles per seed roughly double it. A decision compiles the candidate only once the baseline is cached |
+| Iterations quality panels, primary `cz` + `cx`/`ecr` basis guards (9 cases × 100 seeds) | ≈10 CPU-minutes per revision; the routing replay's two truncated compiles per seed roughly double it. A decision compiles the candidate only once the baseline is cached |
 | Timing panel (19 cases × 10 rounds × 3 arms) | ≈1 hour on an exclusive machine; the multi-seed companion (9 cases × 20 seeds × 3 rounds × 3 arms), when required, about as much again |
 | Once per baseline, manifest, policy and machine | Timing and memory A/A calibration ≈2 h exclusive; false-rejection calibration = two seed blocks of baseline quality runs |
 | `confirm-profile`, quality (measured, 3.7) | 15,000 compiles ≈ 87 CPU-minutes per revision: scored cases 70, guards 17 (`hwb12` 16.5); the routing replay roughly doubles it, C1-lite adds ≈30. About 35 wall-minutes per revision on six serial workers |
@@ -1157,7 +1225,7 @@ comparisons is claimed (4.10).
   0 on any seed — in the evolved revision (a possible large improvement) or
   in a reference — it is reported separately and is `unresolved` pending review. Never
   take `ln(0)`, add an offset, or silently change weights.
-- **Missing observation** (any case × seed on any revision): the panel is incomplete.
+- **Missing observation** (any case × seed on any revision): the case's panel is incomplete, or the case itself if it is judged alone.
   Missing measurements can never produce a `PASS`, and failures are never dropped from a
   denominator to improve a score. Inapplicable metrics are absent, not zero.
 
@@ -1192,11 +1260,11 @@ repeat b = 1 .. 10,000 (recorded RNG seed):
 U_instance = 95th percentile of { ln_score*_b }
 ```
 
-Groups are resampled whole, carrying all their target, basis, level and parameter variants,
+Groups are resampled whole, carrying all their target, basis, level, method and parameter variants,
 so correlated variants never masquerade as new inputs. Seeds are resampled as one shared
 vector, preserving the pairing between revisions and the covariance between cases. Family
 and configuration weights stay fixed: resampling changes instance multiplicities, not the
-intended workload mix. Identical support makes every group in a stratum carry the same
+intended family and configuration mix. Identical support makes every group in a stratum carry the same
 total weight `W_h/n_h`, so `sum_h W_h·ybar_h(S)` is exactly the frozen-weight `ln(score)`.
 
 The `sqrt(n_h/(n_h−1))` factor matters: with three groups per stratum a plain cluster
@@ -1212,7 +1280,7 @@ inputs), so the bootstrap is **report-only**: strata are whole families (three t
 groups each, support equalized by resampling each group's weight share rather than its
 cases), the rescaling factor is applied, and `U_instance` is printed beside the score as
 an indication of instance spread. It is not a decision input; the confirm claim is
-about the fixed panel (3.7).
+about the fixed workload (3.7).
 
 ### 4.8. Cost: time and memory
 
@@ -1314,10 +1382,10 @@ circuits are the same every run, so `N` compare-edit-compare rounds on one profi
 a neutral change about `1 − 0.977^N` chances of a lucky `PASS` — about a third at
 `N` = 20 — and a candidate *kept because* it passed carries whatever share of its gain
 was luck on those seeds. The harness does not correct for this inside a run; it relies
-on the workflow of section 1: the confirm profile's panel holds 35 input groups the
+on the workflow of section 1: the confirm profile's scored panel holds 35 input groups the
 iteration loop never contained, so a gain that was luck on the iterations profile's seeds
-and circuits shows up there as `NO_IMPROVEMENT`. Because the confirm panel's `SE` is
-about a third of the iterations panel's, a real gain that passed the iterations test has a
+and circuits shows up there as `NO_IMPROVEMENT`. Because the confirm scored panel's `SE` is
+about a third of the iterations scored panel's, a real gain that passed the iterations test has a
 good chance there, and a lucky one very little. The count of decisions per manifest in the
 results root is printed so that a confirm run that has itself become a loop is visible.
 
@@ -1419,7 +1487,7 @@ isolation becomes relative under coherent control. A few fixtures therefore embe
 compiled block as a controlled operation and compare again.
 
 **C1-lite (`confirm-profile`, 3.7).** The same oracle applied to *scored* outputs
-instead of fixtures: every scored output of the confirm panel whose active physical qubits
+instead of fixtures: every scored output of the confirm profile whose active physical qubits
 number at most 25 (all small-band inputs and `ripple_adder_10`; at the baseline these
 outputs use 5 to 25 physical qubits) is compared with its input at every level on the
 first 10 seeds of the block — the seed count C7 uses, since the stage-coverage rule needs
@@ -1433,7 +1501,7 @@ stages` and no substituted component, so under 5.9 these outputs are verified fo
 stage at levels 2–3. Cost: about 30 CPU-minutes per revision and block, measured with
 Aer's single-threaded statevector method at the baseline — the 23-qubit `ripple_adder_10`
 output costs 9 s per state, the 16-qubit `qaoa_complete_n16` output (11,800 gates)
-0.7 s, and most of the panel milliseconds; the full block would cost hours, which is why
+0.7 s, and most of the other outputs milliseconds; the full block would cost hours, which is why
 the seed count is capped.
 
 ### 5.4. C2 — layout, ancillas, measurements and observables
@@ -1640,7 +1708,7 @@ against the scored (1,983, 9,835) — one reason C6, which runs on the scored ci
 itself, is the primary evidence for routing. Arbitrary quantum-volume unitaries and
 nonlinear reversible logic cannot be made Clifford by replacing angles: the confirm profile's
 families need fixture-appropriate structured oracles, small counterparts and targeted
-regressions, with whatever remains uncovered recorded as such. Seed or workload diversity
+regressions, with whatever remains uncovered recorded as such. Seed or input diversity
 never substitutes for correctness.
 
 ### 5.9. The stage-coverage rule
@@ -1673,7 +1741,7 @@ a later stage.
   0–1 the complete-pipeline C7 covers every stage for Clifford variants. In
   `confirm-profile`, C1-lite (5.3) verifies every stage on the 18 small scored input
   groups at all levels, so the review of an optimization-stage candidate has exact
-  evidence on half the panel; the medium and large cases keep the limit above. Also
+  evidence on half the scored panel; the medium and large cases keep the limit above. Also
   explain any case that verified at the baseline and does not under the candidate.
 
 ### 5.10. Canaries and the determinism audit
@@ -1793,8 +1861,8 @@ Only cases judged one at a time — canaries, C7, and the confirm profile's dete
 zero-baseline and per-case guards, among them the guard cases of 3.4 — may declare a
 smaller seed count in the manifest (`hwb12` uses the first 20 seeds of the block;
 canaries, C7, C6 on the per-case guards, the confirm profile's deterministic and zero-baseline
-guards and the level-3 `su2_circular_n89` guard the first 10). Every case of a scored or summarized
-panel uses the whole block, because `delta_s` and the bootstrap's shared seed vector
+guards and the level-3 `su2_circular_n89` guard the first 10). Every case of a panel, and so of any
+summary, uses the whole block, because `delta_s` and the bootstrap's shared seed vector
 need one common seed set.
 
 Rules:
@@ -1819,7 +1887,7 @@ Observations are paired by seed ID: `delta_s` differences the two revisions at t
 seed. Pairing is a variance device, not a claim that seed `s` follows the same search
 trajectory in both revisions — after an algorithm change it generally does not. The
 estimator remains valid because `SE` is computed from the observed differences rather than
-assuming a beneficial correlation. If independent seed panels were ever used instead, the
+assuming a beneficial correlation. If independent seed sets were ever used instead, the
 standard error would be
 `sqrt(var(x_evolved)/n_evolved + var(x_reference)/n_reference)`; never substitute
 baseline-only variances when a candidate may change the distribution.
@@ -1834,11 +1902,11 @@ arithmetic mean. Memory uses the case's fixed seed.
 
 More seeds test search noise on an existing input. They do **not** test generalization
 to unseen circuits. A hundred seeds of three circuits remain three circuits — which is why
-the iterations verdict is panel-specific, why the confirm profile scores independent input
+the iterations verdict is specific to its three circuits, why the confirm profile scores independent input
 groups and reports the bootstrap of 4.7, and why a change iterated on the iterations profile
 is checked on the confirm profile's circuits rather than on more seeds of the same three
 (section 1). The confirm profile has no bootstrap gate, which is why its claim stops at
-the fixed panel (3.7).
+the fixed workload (3.7).
 
 ### 6.7. Determinism audit
 
@@ -2187,7 +2255,7 @@ the cache; a test proves no process imports two Qiskits. Smoke runs issue no dec
 | M2-9 | Run state, the per-manifest decision count in the results root, resumption | S |
 | M2-10 | Controlled-runner definition and quiet-machine checks; timing modes, interleaving with the control arm, A/A calibration and its reuse, noise floors, companion and preset panels, `diagnostics` mode | L |
 | M2-11 | Sign-flip false-rejection calibration on the calibration blocks | M |
-| M2-12 | Canary panel; determinism audit | S |
+| M2-12 | Canaries; determinism audit | S |
 | M2-13 | Upstream-test runner (baseline tests on the evolved build), the reshuffled-baseline derivation of the output-pinned list, and the changed-test report | M |
 | M2-14 | Reporter: terminal verdict, `report.md`, `decision.json`, `repro`; `review` command | M |
 | M2-15 | Known-outcome validation suite (section 11) | L |
@@ -2206,7 +2274,7 @@ first `PASS`.
 | --- | --- | --- |
 | M3-1 | Curate the confirm fixtures from the in-tree suite: the `revlib_*`, `qft16_cancel` and `dtc_n100` files; the `qft.py`, `random_circuit_hex.py`, `ripple_adder.py`, `quantum_volume.py` and `utils.py` constructors at the widths of 3.7, with the QAOA parameters bound; provenance grade, upstream source and license per fixture; the `hwb12`/RevLib provenance question settled | M |
 | M3-2 | Freeze the eleven additional targets (`mumbai_27`, `mumbai_27_loose`, `melbourne_14`, `melbourne_14_u`, `rochester_53`, `rochester_53_u`, `tokyo_20`, `sycamore_54`, `grid_5x5_u`, `grid_7x7_u`, `a2a_clifford_rz_16`) as canonical data, with the size band computed from active qubits and the topology class recorded | S |
-| M3-3 | Manifest generator for the confirm panel: family → level → band → topology → basis → group weight tree, coverage validation against the standard of 3.7 with declared gaps, exclusions, role assignment from baseline data (deterministic and zero-baseline roles confirmed on the comparison block and the two calibration blocks — the path/ring inputs, `qft16_cancel`, the QUEKO defaults, the all-to-all control) | M |
+| M3-3 | Manifest generator for the confirm workload: family → level → band → topology → basis → group weight tree, coverage validation against the standard of 3.7 with declared gaps, exclusions, role assignment from baseline data (deterministic and zero-baseline roles confirmed on the comparison block and the two calibration blocks — the path/ring inputs, `qft16_cancel`, the QUEKO defaults, the all-to-all control) | M |
 | M3-4 | Family-balanced scorer, family and level summaries as guards, band/topology/basis summaries as reports, breadth and leave-one-family-out checks, the leave-iterations-out score; the CA1–CA6 records and verdict | M |
 | M3-5 | Report-only paired cluster bootstrap with family strata and the small-sample rescaling | S |
 | M3-6 | C1-lite (5.3): exact equivalence for scored outputs on at most 25 active physical qubits, all levels, first 10 seeds; its stage-coverage record | M |
@@ -2294,14 +2362,14 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
 | --- | --- | --- |
 | No at-scale oracle for the optimization stage at levels 2–3 | Automatic `PASS` limited to layout/routing candidates; most other runs end `INCONCLUSIVE` | State it in every report; the review workflow gives such candidates a path; pursue a stronger oracle (block-wise equivalence of resynthesized two-qubit regions is one candidate) as separate work |
 | The verifier's pinned Qiskit shares its lineage with every revision | A common-mode error goes unseen | Keep metric, legality and replay code pure Python; mutation tests (section 11); update the pin deliberately, never implicitly |
-| No false-acceptance control across repeated comparisons: every run uses the same seeds and circuits | Each comparison errs in the candidate's favor about 2.3% of the time, so `N` compare-edit-compare rounds on one profile accumulate about `1 − 0.977^N`, and a candidate kept because it passed carries the luck of those seeds | The profile workflow of section 1: iterate on the iterations profile, check once on the confirm profile, most of whose panel the loop did not contain; the report prints the per-manifest decision count and the leave-iterations-out score; claim no formal rate; consider a sequential-testing policy before automating a search loop |
-| The confirm profile becomes the loop | Its check value is gone: the same selection bias now sits on the 38-group panel, with nothing above it | State the rule in the report; the decision count makes it visible; if it happens in practice, add a new confirm manifest version of inputs the loop never saw and treat the old one as tuning data |
+| No false-acceptance control across repeated comparisons: every run uses the same seeds and circuits | Each comparison errs in the candidate's favor about 2.3% of the time, so `N` compare-edit-compare rounds on one profile accumulate about `1 − 0.977^N`, and a candidate kept because it passed carries the luck of those seeds | The profile workflow of section 1: iterate on the iterations profile, check once on the confirm profile, most of whose workload the loop did not contain; the report prints the per-manifest decision count and the leave-iterations-out score; claim no formal rate; consider a sequential-testing policy before automating a search loop |
+| The confirm profile becomes the loop | Its check value is gone: the same selection bias now sits on the 38-group scored panel, with nothing above it | State the rule in the report; the decision count makes it visible; if it happens in practice, add a new confirm manifest version of inputs the loop never saw and treat the old one as tuning data |
 | The iterations profile has no minimum effect size | With small `SE` a negligible gain can pass | Decide before freezing whether to add a practical threshold like the confirm profile's 1% |
 | The guards tolerate small slowdowns by design | A panel slowdown within the noise allowance and a per-case 10% are purchasable | Accepted policy; the allowance is not spent repeatedly as long as successive comparisons name the same original baseline (section 1) |
 | Budget: `hwb12` 41–49 s per compile; level-3 VF2 up to 40 s | Comparisons too slow to run | `confirm-profile` (3.7) costs ≈87 CPU-minutes of quality compiles per revision; the baseline is compiled once and cached; profile before freezing; run quality concurrently; per-case seed counts |
-| The confirm panel is thin in places: G6 has one group per band, and G2 and G7 are seed-sensitive at levels 1–3 on one input each (`square_heisenberg_n100` 9.9% and `su2_circular_n89` 9.4% of the score) | A single input can move a family summary and a fifth of the score sits on two circuits | Declared in 3.7; the family breadth rule and level guards limit the damage; the next confirm manifest version adds a 2D-lattice Hamiltonian and a non-embeddable ansatz first; a confirm `PASS` claims the fixed panel only |
+| The confirm workload is thin in places: G6 has one group per band, and G2 and G7 are seed-sensitive at levels 1–3 on one input each (`square_heisenberg_n100` 9.9% and `su2_circular_n89` 9.4% of the score) | A single input can move a family summary and a fifth of the score sits on two circuits | Declared in 3.7; the family breadth rule and level guards limit the damage; the next confirm manifest version adds a 2D-lattice Hamiltonian and a non-embeddable ansatz first; a confirm `PASS` claims the fixed workload only |
 | Path- and ring-shaped in-tree inputs are seed-blind at levels 1–3 (VF2 embeds them) | Half the suite's Hamiltonian and ansatz inputs carry no routing signal above level 0 | Deterministic-guard role at 1–3, frozen from baseline data; scored at level 0; level placed directly under family in the confirm weight tree so they cannot take a whole cell |
-| `time_qft_16.qasm` is a mis-written QFT whose `cx` pairs cancel; `quantum_volume.py` never applies its seed; three RevLib files and the Tokyo QUEKO instance declare qubits they do not use | Upstream fixtures taken at face value would mislabel bands, roles or sizes | Roles from measured baseline data, not names; size band from active qubits; QV matrices frozen with a recorded seed; each finding recorded in `PROVENANCE.md` |
+| `time_qft_16.qasm` is a mis-written QFT whose `cx` pairs cancel; `quantum_volume.py` never applies its seed; three RevLib files and the Tokyo QUEKO instance declare qubits they do not use | Upstream files taken at face value would mislabel bands, roles or sizes | Roles from measured baseline data, not names; size band from active qubits; QV matrices frozen with a recorded seed; each finding recorded in `PROVENANCE.md` |
 | `su2_circular_n89` carries 9.4% of the confirm score as the only seed-sensitive ansatz | One circuit can move the family and the score | Stated in 3.7; its level-3 guard and the family breadth rule limit the damage; the next confirm manifest version adds a second ansatz |
 | Guard multiplicity | Good candidates rejected | Guards at `3·SE`, calibrated on baseline-only data (4.9), accepting the stated power cost; demote summaries to report-only rather than widen further |
 | Timing noise on shared machines | False cost breaches or masked regressions | Controlled runner, A/A calibration, in-run control arm, absolute floors, refuse to freeze above 5% noise |
@@ -2315,14 +2383,14 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
 
 | Parameter | Default |
 | --- | --- |
-| Seeds per block; blocks | 100; `B0` 0–99 for every comparison, `KB1` 100–199 and `KB2` 200–299 for baseline-only calibration; `hwb12` 20 seeds; canaries, C7, the confirm profile's deterministic, zero-baseline and per-case guards and C6 on those guards 10 seeds; C1 seeds 0–4; no reduced counts inside a scored or summarized panel |
+| Seeds per block; blocks | 100; `B0` 0–99 for every comparison, `KB1` 100–199 and `KB2` 200–299 for baseline-only calibration; `hwb12` 20 seeds; canaries, C7, the confirm profile's deterministic, zero-baseline and per-case guards and C6 on those guards 10 seeds; C1 seeds 0–4; no reduced counts inside a panel |
 | Improvement multiplier; guard multiplier | 2.0 standard errors; 3.0 standard errors |
 | Per-case caps | 1.05 quality; 1.10 cost, together with the absolute noise floor |
 | `deterministic` and `zero_baseline` roles | Frozen from baseline data: constant on the comparison block and the two calibration blocks; compared exactly, seed by seed; mixed zero/positive cases excluded or under the paired absolute rule |
 | Upstream tests | Baseline's Python tests against the evolved build are binding, minus a frozen output-pinned list that is report-only; Rust inline tests are the evolved snapshot's own |
 | Routing guard circuits (3.4) | Members of `confirm-profile` only, with the levels and roles of its tables (`hwb12` at level 2 only); primary `cz` target unless fixture-fixed; QUEKO in both default and SABRE-method configurations; references the baseline |
 | Confirm practical effect; breadth | 1%; at least 4 of 8 families and leave-one-family-out below 1 |
-| `confirm-profile` specifics | Weight tree family → level → band → topology → basis → group over the one 38-group panel; `+2·SE < ln(0.99)`; family and level summaries guarded, band/topology/basis summaries reported; bootstrap report-only with family strata; leave-iterations-out score reported; C1-lite on outputs with at most 25 active physical qubits, first 10 seeds, operators up to 10 qubits, then the all-zeros state plus 8 (up to 16 qubits) or 2 frozen random product states; `su2_circular_n89` level 3 and `hwb12` level 2 as 10- and 20-seed guards; size band from active qubits |
+| `confirm-profile` specifics | Weight tree family → level → band → topology → basis → group over the one 38-group scored panel; `+2·SE < ln(0.99)`; family and level summaries guarded, band/topology/basis summaries reported; bootstrap report-only with family strata; leave-iterations-out score reported; C1-lite on outputs with at most 25 active physical qubits, first 10 seeds, operators up to 10 qubits, then the all-zeros state plus 8 (up to 16 qubits) or 2 frozen random product states; `su2_circular_n89` level 3 and `hwb12` level 2 as 10- and 20-seed guards; size band from active qubits |
 | Bootstrap | 10,000 replicates, 95th percentile, frozen RNG seed, at least 3 groups per stratum, `sqrt(n/(n−1))` rescaling |
 | Numerical tolerances | Operators `rtol 1e-7`, `atol 1e-8`; states, expectations and TVD `1e-8` |
 | Timing protocol | 10 rounds; 1 warm-up; at least 3 timed calls and 1 s per round; control arm; companion seeds 0–19 × 3 rounds; T1–T2 with the level omitted |
