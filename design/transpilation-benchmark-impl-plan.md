@@ -701,34 +701,97 @@ family, where it is scored at levels 0–2 and guarded at level 3 (3.7).
 
 ### 3.6. Timing panel (19 cases)
 
-| ID | Input and configuration | Mode | Levels | Seed |
-| --- | --- | --- | --- | --- |
-| T1 | `single_h`: one qubit, one `h`; fixed 27-qubit coupling map, basis `id, rz, sx, x, cx, reset` (loose constraints) | `timing_e2e` | Omitted (resolved default) | 20220125 |
-| T2 | `cancel_2q`: `h h cx cx cx cx` on two qubits — everything cancels; same constraints | `timing_e2e` | Omitted (resolved default) | 20220125 |
-| T3–T6 | `qv_n14_d14`: 98 frozen random two-qubit unitaries; 14-qubit target with Melbourne connectivity | `timing_e2e` | 0, 1, 2, 3 | 0 |
-| T7–T10 | `long_2q_sequence` with its loose legacy constraints | `timing_e2e` | 0, 1, 2, 3 | 0 |
-| T11–T19 | The three scored circuits × `cx`, `cz`, `ecr` | `timing_reuse` | 2 | 1234567845 |
+The timing panel is the iterations profile's **compile-time guard**. It asks one
+question: does the candidate take longer than the baseline to compile the same thing?
+It measures time only. No `D2` or `N2` is taken from these runs, and nothing on the
+panel needs to get faster. It is a cost panel in the sense of section 1: the 19 cases
+are folded into one number, `ln_panel`, the equal-weight (1/19 each) mean of the
+per-case log time ratios, which rule IA5 judges (8.2). The confirm profile keeps the
+panel unchanged and adds a panel of its own (3.7, CA5).
 
-T1–T2 expose wrapper and fixed overhead that large circuits hide; T3–T10 time complete
-compilation across levels; T11–T19 time repeated compilation of the scored circuits with
-preset construction outside the clock. T1–T2 omit the level, as upstream and users of the
-bare wrapper do; each has a report-only companion with the level explicit (2) and each
-revision's resolved default is recorded, so a changed default is reported as a
-configuration change instead of being mistaken for a slowdown. The fixed seeds are the
-historical upstream values. Timing boundaries are frozen per case: circuit loading, target
-construction, verification, metric extraction and diagnostic callbacks are always outside
-the clock.
+Each case is one fixed compile: one input, one set of constraints, one optimization
+level and one seed. Every revision repeats it many times. All 19 cases come from
+upstream's timing benchmarks in `test/benchmarks/`, with the same inputs, constraints
+and seeds, so the panel times what Qiskit already tracks.
 
-Two companions sit beside the panel:
+**What the clock covers.** The *mode* of a case says which call is timed (2.3):
 
-- A **multi-seed timing companion** times T11–T19 over seeds 0–19, three rounds per seed,
-  with one pass manager per seed built outside the clock. It is required when a change
-  touches randomized search (layout, routing) or its scope is unknown, because fixed-seed
-  timings do not constrain expected cost over the seed distribution.
-- A **preset-construction panel** (`preset_build` on the three 193-qubit targets at level
-  2) is always measured and reported, and is guarded when the change scope includes preset
-  assembly or target handling, or is unknown. The `timing_e2e` cases contain construction
-  time only for small targets.
+- **`timing_e2e`**: a complete `transpile(...)` call. This includes everything the
+  wrapper does before any pass runs: resolving options, building a `Target` when the
+  case gives loose constraints, and building the preset pass manager.
+- **`timing_reuse`**: `pm.run(circuit)` only. The preset pass manager is built once
+  per process, before the clock starts, and reused for every timed call. This is how
+  upstream's utility-scale benchmarks time the transpiler.
+
+*Loose constraints* means the case passes `coupling_map=` and `basis_gates=` rather
+than a `Target`, as the upstream benchmark does. `transpile` then builds the target
+itself, inside the clock. Some work is outside the clock in every mode: loading the
+circuit, loading a frozen target, verification, metric extraction and diagnostic
+callbacks.
+
+| ID | Input | Constraints | Level | Seed | Mode |
+| --- | --- | --- | --- | --- | --- |
+| T1 | `single_h`: one qubit, one `h` | Loose: upstream's fixed 27-qubit coupling map, basis `id, rz, sx, x, cx, reset` | Not passed (see below) | 20220125 | `timing_e2e` |
+| T2 | `cancel_2q`: `h h cx cx cx cx` on two qubits; every gate cancels | Same as T1 | Not passed | 20220125 | `timing_e2e` |
+| T3–T6 | `qv_n14_d14`: 14 layers of 7 frozen random two-qubit unitaries (98 in all) | Frozen 14-qubit `Target` with Melbourne connectivity | 0, 1, 2, 3 (one case each) | 0 | `timing_e2e` |
+| T7–T10 | `long_2q_sequence`: the two-qubit, 3,505-gate input of the 3.5 canary | Loose: Rochester 53-qubit coupling map, legacy basis `u1, u2, u3, cx, id` | 0, 1, 2, 3 (one case each) | 0 | `timing_e2e` |
+| T11–T19 | The three scored circuits of 3.3 | Frozen `heavy_hex_d9_cx`, `_cz`, `_ecr` (3 circuits × 3 targets) | 2 | 1234567845 | `timing_reuse` |
+
+What each group catches, and where upstream times it:
+
+| Cases | Upstream benchmark | What a slowdown here means |
+| --- | --- | --- |
+| T1–T2 | `transpiler_benchmarks.py`: `time_single_gate_compile`, `time_cx_compile` | Fixed per-call overhead. With almost nothing to compile, the time is option handling, target construction and preset construction. Large circuits hide this cost, so these cases expose it |
+| T3–T6 | `transpiler_levels.py`: `time_transpile_qv_14_x_14` | Slower full compilation of a small circuit that needs routing and unitary synthesis, at each level |
+| T7–T10 | `transpiler_levels.py`: `time_transpile_from_large_qasm` | Slower handling of a long gate stream on two wires, at each level; levels 2–3 add two-qubit resynthesis |
+| T11–T19 | `utility_scale.py`: `time_qft`, `time_square_heisenberg`, `time_qaoa` | Slower passes on the scored workload itself: the cost side of the quality score |
+
+T3–T10 span levels 0–3 so a slowdown at one level cannot hide behind level 2 (7.2).
+
+**Why T1–T2 do not pass a level.** Upstream calls `transpile` on these two cases without
+`optimization_level`, and so do most users of the bare wrapper. They therefore run at
+whatever default the revision has (2 at the baseline). If a candidate changes that
+default, T1–T2 time a different pipeline. The harness records each revision's resolved
+default, and the report labels such a difference as a configuration change rather than
+as a slowdown. Each of the two cases also has a report-only twin that passes
+`optimization_level=2` explicitly, so a like-for-like number always exists. The twins
+are not among the 19 cases and are not guarded.
+
+**Why one fixed seed per case.** A timing comparison needs every call of a case to do
+the same work, and a fixed seed makes the compile deterministic. The seed values are
+upstream's (20220125, 0 and 1234567845), kept so timings compare with upstream's
+history. They have no meaning of their own and are unrelated to the comparison block
+`B0` (6.3). The cost of this choice: a change to the layout or routing search can be
+faster on one seed and slower on average. The multi-seed companion below covers that
+case.
+
+**How a case is measured** (4.8 has the formulas). Three arms are timed: the baseline,
+a second build of the baseline (the control arm) and the candidate. Each arm runs each
+case in 10 rounds, interleaved in random order. A round is a fresh process. It loads the
+inputs, builds the pass manager for a `timing_reuse` case, makes one untimed warm-up
+call, then times calls until it has at least 3 calls and at least 1 s. The case time is
+the median over rounds of each round's median call. IA5 passes when:
+
+- `ln_panel` is within the A/A noise level `noise_panel`,
+- no case breaches the per-case cap (slower by more than 10% *and* by more than its
+  absolute noise floor, 4.4), and
+- the control arm, compared with the baseline, passes the same test. If it does not,
+  the machine was noisier than its calibration and the result is `unresolved`.
+
+On a controlled runner the panel takes about an hour (3.9).
+
+**Two companion panels.** Each is a separate cost panel with the same guard. Neither is
+part of the 19.
+
+| Companion | What it times | Measured | Guarded |
+| --- | --- | --- | --- |
+| Multi-seed companion | The nine T11–T19 cases over seeds 0–19, three rounds per seed, with one pass manager per seed built outside the clock. Case time is the arithmetic mean over seeds of the median over rounds (4.8) | When the change scope (5.9) includes layout or routing, or is unknown | Whenever measured |
+| Preset-construction panel | `preset_build`: `generate_preset_pass_manager` alone at level 2, on each of the three 193-qubit `heavy_hex_d9` targets (3 cases) | Always | When the change scope includes preset assembly or target handling, or is unknown |
+
+The companion exists because the fixed seed above times a single search path. The
+preset panel exists because no case in the 19 times building a preset for a large
+target: T11–T19 build it outside the clock, and T1–T10 build it only for small
+targets.
 
 ### 3.7. The confirm profile
 
