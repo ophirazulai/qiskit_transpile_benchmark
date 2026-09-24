@@ -110,7 +110,8 @@ be frozen before the first candidate is evaluated (section 12 lists them).
    optimization stage or two-qubit synthesis tops out at `INCONCLUSIVE` pending the review
    workflow of section 8.6. (At levels 0–1 the complete pipeline verified on all three
    100-qubit circuits; in `confirm-profile` the small half of the scored panel is verified exactly
-   at every level by C1-lite, 5.3, which gives that review real evidence.)
+   at its scored levels under the zero-input contract by C1-lite, 5.3, subject to the
+   corrected oracle's qualification; this gives that review additional evidence.)
 11. **Noise drives the design.** At the baseline the per-seed standard deviation of
     `ln D2` is 4–9% (1.4–3.9% for `N2`). With 100 seeds the iterations score's standard error
     is about 0.6%, so a true gain of about 1.1% passes half the time and about 1.6% four
@@ -138,7 +139,7 @@ Numbers at a glance (baseline facts and planning estimates; sources in the secti
 | Clifford oracle, complete default pipeline | 3 of 3 at level 0, 3 of 3 at level 1 (`cz`); 1 of 9 at level 2. Prefix with substituted synthesis: 9 of 9 | 5.8 |
 | Indicative compile time, level 2 | 0.2–1.0 s scored circuits; 41 s `hwb12`; 5 s / 33 s for an 89-qubit ring at level 2 / 3 | 3.9, 7.4 |
 | `confirm-profile` workload | 38 scored input groups, 133 scored cases, 14 guard inputs, 14 frozen targets (11 scored); every input from `test/benchmarks/` | 3.7 |
-| `confirm-profile` cost | ≈87 CPU-minutes of quality compiles per revision (×2 with the routing replay, plus ≈30 for C1-lite), so ≈3.5 CPU-hours for a candidate once the baseline is cached; < 3 exclusive hours of cost measurement per decision | 3.7, 3.9 |
+| `confirm-profile` cost | ≈87 CPU-minutes of quality compiles per revision (×2 with routing replay, plus a provisional 30-minute C1-lite allowance), so ≈3.5 CPU-hours for a candidate once baseline quality is cached; < 3 exclusive hours of fresh cost measurement per decision, subject to qualification | 3.7, 3.9 |
 | `confirm-profile` standard error | ≈0.2% on the 100-seed block (planning estimate; inputs, not seeds, are the binding constraint) | 3.7 |
 | Seed-blind inputs in the suite | Path- and ring-shaped circuits are deterministic at levels 1–3 (VF2 embeds them); `time_qft_16` cancels to `D2` = 0 at levels 2–3 | 3.7 |
 
@@ -150,6 +151,11 @@ standard staged pipeline (`init`, `layout`, `routing`, `translation`, `optimizat
 the workloads, measurement runner, correctness checks, decision policy and reports. It
 does not live inside either Qiskit checkout and never reads workload definitions from the
 evolved checkout.
+
+Exactness is relative to each fixture's declared semantic reference. The Trotter inputs
+retain high-level evolution gates for compilation, but their reference is a frozen
+product-formula circuit (3.7), not the exact Hamiltonian exponential. Their algorithmic
+approximation is fixed before evaluation and cannot be changed to earn a gain.
 
 **Scored versus checked.** Only static circuits enter the `D2` score. Dynamic circuits
 (mid-circuit measurement, reset, control flow), symbolic-parameter semantics, scheduling
@@ -303,7 +309,8 @@ Three rules follow from the trust boundary:
 - **The revision under test computes none of its own grades.** A candidate that changes
   `QuantumCircuit.depth()`, `count_ops()`, `Operator` or `Target` queries cannot alter its
   score or its oracle. The worker touches only the accessors needed to walk the output
-  (`circuit.data`, operation name, parameters, bit indices, layout index arrays).
+  (`circuit.data`, operation descriptors and typed payloads, bit indices, layout index
+  arrays); it does not evaluate that output's correctness.
 - **Evaluation is replayable.** The evaluator and reporter read only saved observations,
   so a decision can be recomputed, or a policy bug fixed, without recompiling anything.
 
@@ -338,6 +345,7 @@ qiskit-transpile-bench/
   profiles/iterations-profile/ # manifest.json, policy.json, exclusions.json
   profiles/confirm-profile/   # the in-tree-benchmark check profile (3.7)
   fixtures/circuits/          # *.ops.jsonl.gz canonical inputs (+ Clifford variants)
+  fixtures/references/        # frozen product-formula oracle circuits, separate from inputs
   fixtures/targets/           # *.target.json frozen targets
   fixtures/PROVENANCE.md      # origin, license, generator script and seed of every fixture
   tools/curate/               # one-time fixture generators, run in the verifier environment
@@ -402,22 +410,50 @@ canonical bytes (object keys sorted, no insignificant whitespace, list order pre
 
   ```text
   {"format":"qtb-circuit/1","num_qubits":193,"num_clbits":0,"qregs":[["q",193]],"cregs":[],"global_phase":"0x0.0p+0","parameters":[]}
-  ["rz",[17],[],["0x1.921fb54442d18p+0"]]
-  ["cz",[17,18],[],[]]
+  ["rz",[17],[],["0x1.921fb54442d18p+0"],null]
+  ["cz",[17,18],[],[],null]
   ```
 
-  Each line is `[name, qubit indices, clbit indices, parameters]`. Register names and sizes
-  are in the header because C2 checks that they survive. Matrix-defined gates carry their
-  matrix as nested hexadecimal pairs. Control-flow operations carry their blocks
-  recursively with explicit block-to-outer wire maps; version 1 supports only conditions
-  that test a bit or a register for equality, and reports anything else as `unsupported`.
-  Scheduled outputs add per-operation start time and duration.
-- **Symbolic parameters.** An input names its parameters. An output is exported twice:
+  Each line is `[name, qubit indices, clbit indices, parameters, payload]`. A `null`
+  payload is permitted only for a frozen allowlist of standard operations whose type and
+  semantics are completely determined by the first four fields. Otherwise the payload
+  has a versioned `kind` and all fields needed by an explicit adapter constructor:
+
+  | Payload kind | Required semantic data |
+  | --- | --- |
+  | Matrix-defined gate | Arity and matrix as nested hexadecimal real/imaginary pairs |
+  | `PauliEvolutionGate` | Ordered operator terms, coefficients, width and any commuting-group boundaries; synthesis class and explicit settings, including repetitions, term order, CX structure, barriers and wrapping. Custom synthesis callbacks are unsupported |
+  | `AnnotatedOperation` | Recursive base-operation descriptor and ordered inverse, control or power modifiers, including control state |
+  | `MCMTGate` | Recursive base-gate descriptor, control and target counts, and control state |
+  | Defined gate/instruction | Arity and recursive circuit definition, including its global phase; used only when that generic type is the original input type |
+  | Delay | Duration unit in addition to the duration parameter |
+  | Control flow | Blocks with explicit block-to-outer wire maps, conditions and loop data; version 1 supports bit/register equality conditions and the bounded-loop fixtures only |
+
+  Every semantic payload is hashed. Importing preserves the operation type that selects
+  Qiskit's synthesis path: an annotated or evolution operation cannot silently become a
+  generic gate, a matrix or a pre-decomposed circuit. Unknown types or missing payloads
+  are `unsupported`. Register names and sizes are in the header because C2 checks their
+  preservation; noncontiguous or overlapping registers additionally carry explicit bit
+  index lists instead of relying on the contiguous shorthand above. Scheduled outputs
+  add start time and duration, with explicit units, to the payload. Structural metrics
+  consume the wire fields; replay compares the complete operation descriptor, including
+  its semantic payload.
+- **Symbolic parameters.** An input declares parameter IDs and names and represents
+  expressions, including symbolic global phase and nested payload values, as a versioned
+  expression tree over those IDs and a frozen allowlist of arithmetic operations.
+  The adapter reconstructs that tree; unsupported expression operations are refused.
+  An output is exported twice:
   structurally, with each symbolic parameter as an opaque expression string plus its
   free-parameter names (enough for `D2`, `N2`, legality and the free-parameter rule of C4),
   and as one **bound numeric circuit per declared binding**, produced by the revision's
   own `assign_parameters` — the binding step is part of what C4 tests. No component ever
   parses an expression string.
+- **Semantic reference.** Each case declares its input domain and either
+  `semantic_reference: {"kind": "input"}` or a hashed, frozen reference circuit with a
+  named contract. The latter is required for the Trotter product-formula fixtures (3.7).
+  The verifier loads that artifact directly; neither revision produces its own expected
+  answer. The input circuit and reference are distinct artifacts and both enter the
+  case definition hash.
 - **Layout**: `input_num_qubits`, `output_num_qubits`, and three integer arrays of length
   `output_num_qubits`: `initial_index_layout` (input position → physical qubit at the
   start), `final_index_layout` (input position → physical qubit at the end), both with
@@ -503,7 +539,7 @@ a machine whose A/A calibration (section 4.8) meets the freeze limit. The usual 
 there is a dedicated Linux host with no other jobs, a fixed CPU frequency policy with the
 turbo setting recorded, workers pinned to fixed cores with the sibling hyper-thread idle,
 swap disabled, and a load check before every cost job. Machine identity (host, CPU model,
-core count, kernel, frequency settings) keys cost caches and calibration records. The
+core count, kernel, frequency settings) identifies cost sessions and calibration records. The
 baseline probes quoted here ran on a macOS development machine, where most of those
 controls are unavailable; treat their timings as indicative only.
 
@@ -965,7 +1001,16 @@ panel share, and the report prints the confirm score with them removed (see "See
 Notes on the inputs. `qft_cp_n8` and `qft_cp_n14` are the controlled-phase QFT of
 `qft.py`; `qft_full_n32` and `qft_full_n64` are `synth_qft_full(n, do_swaps=False)`.
 `trotter_chain_n` is the 1D `XX + YY + ZZ + Z` chain of `utils.trotter_circuit` (ten
-Trotter steps as `PauliEvolutionGate`s, synthesized by the transpiler); `dtc_n100` is
+Trotter steps as `PauliEvolutionGate`s, synthesized by the transpiler). Curation persists
+their Hamiltonians and explicit Lie–Trotter settings, including term order, in the typed
+payloads of 2.4. It also writes a separate oracle-reference circuit by expanding those
+steps in the pinned verifier environment into standard gates. That reference, its hash,
+and the `product_formula` semantic contract are frozen with each chain fixture and the
+all-to-all Trotter control. Workers still compile the high-level input; only the verifier
+uses the expanded reference. Correctness means preserving this product formula under
+the case's input domain, not matching `exp(-itH)`: `approximation_degree=1.0` does not
+remove Lie–Trotter error for noncommuting terms. A different formula or term order needs
+a new fixture version, never a reference regenerated by the candidate. `dtc_n100` is
 100 Floquet steps of `utils.dtc_unitary(100, g=0.95, seed=12345)`, a 1D chain of `rzz`.
 `qaoa_complete_n` is `utils.qaoa_circuit`: a complete graph with random `ZZ` weights,
 ten repetitions, with its 20 symbolic parameters bound at curation to frozen values (its
@@ -1053,17 +1098,19 @@ summaries are reported, not guarded (4.9).
 
 **Correctness.** C0 and the routing replay C6 run on every scored output at every level;
 C7's Clifford variants remain those of the three 100-qubit circuits. The confirm profile adds
-**C1-lite** (5.3): for every scored output whose active physical qubits number at most
-25 — the small-band inputs and `ripple_adder_10`, 18 of the 38 scored input groups (at
-the baseline their outputs use 5 to 25 physical qubits over levels 0–3 and seeds 0–2) —
-the verifier checks exact equivalence at all four levels on the first 10 seeds of the
-block, by operator comparison up to 10 active qubits and, above that, by statevector
-evolution on the all-zeros state plus frozen random product states — about 30
-CPU-minutes per revision and block. Those outputs are `verified` for every stage at
+**C1-lite** (5.3): for scored outputs whose joint output/reference simulation needs at
+most 25 physical wires — the baseline output-width probe suggests the small-band inputs
+and `ripple_adder_10`, 18 of the 38 groups, pending the union-width check of 5.3 —
+the verifier checks the scored zero-initialization contract at each scored level on the
+first 10 seeds of the block. Unmeasured outputs use statevector equality from the
+all-zeros state; measured outputs use classical probabilities and conditional residual
+states (5.3). Trotter outputs use the frozen product-formula reference. The former
+30 CPU-minute estimate is a planning allowance pending qualification of this corrected
+protocol. Those outputs are `verified` for every stage under that input contract at
 levels 2–3, which the 100-qubit outputs are not (5.9). The stage-coverage consequence is
 unchanged for the medium and large cases: a candidate that changes the optimization
-stage still tops out at `INCONCLUSIVE`, but the review workflow (8.6) now has exact
-evidence on half the scored panel.
+stage still tops out at `INCONCLUSIVE`, but the review workflow (8.6) gains exact
+zero-input evidence on the eligible outputs once the corrected oracle is qualified.
 
 **Claim.** A `confirm-profile` `PASS` means *native two-qubit depth improved across the
 eight declared circuit families, levels 0–3, heavy-hex and grid-class targets and the
@@ -1073,7 +1120,8 @@ nothing about circuits outside that workload.
 
 **Budget (measured at the baseline, serial).** Quality: 15,000 compiles and about 87
 CPU-minutes per revision — scored cases 70, guards 17 of which `hwb12` is 16.5 — before
-the routing replay, which roughly doubles it, and C1-lite, about 30 CPU-minutes more:
+the routing replay, which roughly doubles it, and a provisional C1-lite allowance of
+30 CPU-minutes (the corrected protocol of 5.3 must be remeasured):
 about 3.5 CPU-hours per revision, or 35 wall-minutes on six serial workers. The
 baseline's observations are cached (9.3), so after the first run against a baseline a
 decision costs one revision's worth of quality work. Cost measurement: about 1.3
@@ -1139,8 +1187,8 @@ used.
 | One level-2 compile | QFT 1.0 s, QAOA 0.85 s, Heisenberg 0.2 s; level 0 is 6–28× faster, level 3 about 1.3–1.4× slower |
 | Iterations quality panels, primary `cz` + `cx`/`ecr` basis guards (9 cases × 100 seeds) | ≈10 CPU-minutes per revision; the routing replay's two truncated compiles per seed roughly double it. A decision compiles the candidate only once the baseline is cached |
 | Timing panel (19 cases × 10 rounds × 3 arms) | ≈1 hour on an exclusive machine; the multi-seed companion (9 cases × 20 seeds × 3 rounds × 3 arms), when required, about as much again |
-| Once per baseline, manifest, policy and machine | Timing and memory A/A calibration ≈2 h exclusive; false-rejection calibration = two seed blocks of baseline quality runs |
-| `confirm-profile`, quality (measured, 3.7) | 15,000 compiles ≈ 87 CPU-minutes per revision: scored cases 70, guards 17 (`hwb12` 16.5); the routing replay roughly doubles it, C1-lite adds ≈30. About 35 wall-minutes per revision on six serial workers |
+| Once per baseline, manifest, policy and machine | Reprofile the former ≈2 h A/A estimate with 4.8's explicit companion collection and estimator-specific calibration; false-rejection calibration = two seed blocks of baseline quality runs |
+| `confirm-profile`, quality (3.7) | Measured compiles: 15,000 ≈ 87 CPU-minutes per revision, scored cases 70 and guards 17 (`hwb12` 16.5); routing replay roughly doubles it. C1-lite's 30-minute allowance and the resulting ≈35 wall-minutes on six workers remain provisional until the corrected oracle is qualified |
 | `confirm-profile`, one decision | ≈3.5 CPU-hours of quality work for the candidate with the baseline cached; twice that the first time a baseline is used |
 | `confirm-profile`, cost panels | Confirm timing panel (31 `timing_e2e` cases) ≈ 1.3 exclusive hours, plus T1–T19 ≈ 1 hour, memory (9 cases × 5 processes × 3 arms) ≈ 15 minutes; the companion, when required, ≈ 20 minutes |
 
@@ -1172,7 +1220,7 @@ persisted `native_2q_names`.
 ```python
 def d2_n2(ops, native_2q_names):
     level, n2 = {}, 0                       # wire -> counted layers so far
-    for name, qubits, clbits, _params in ops:        # circuit order
+    for name, qubits, clbits, _params, _payload in ops:  # circuit order
         wires = [("q", q) for q in qubits] + [("c", c) for c in clbits]
         counted = name in native_2q_names and len(qubits) == 2
         new = max((level.get(w, 0) for w in wires), default=0) + counted
@@ -1353,7 +1401,7 @@ Cost uses its own estimators; the quality seed estimator is never applied to cos
 t(c, r)       = median over rounds k  of  median over timed calls j  of  elapsed(c, r, k, j)
 ln_ratio_t(c) = ln t(c, evolved) - ln t(c, baseline)
 ln_panel      = sum_c u_c * ln_ratio_t(c)       # u_c = 1/|panel|
-t_ms(c, r)    = mean over companion seeds s  of  median over rounds k  of  elapsed(c, r, s, k)
+t_ms(c, r)    = mean over companion seeds s  of  median over rounds k  of  median over calls j of elapsed(c, r, s, k, j)
 rss(c, r)     = median over fresh processes of peak resident set size
 guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
 ```
@@ -1361,7 +1409,10 @@ guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
 - **Protocol.** Default 10 rounds, each a fresh process with one warm-up call and then
   timed calls until at least 3 calls and 1 s have accumulated. Rounds interleave the arms
   in a balanced, randomized order, one measurement at a time on the controlled runner; the
-  coordinator refuses to start a cost job while quality workers run.
+  coordinator refuses to start a cost job while quality workers run. Every new comparison
+  measures all three arms afresh in one cost session, including the baseline and control;
+  archived timings from another comparison never replace an arm. Each observation records
+  its session ID and arm ID, even when the two baseline builds share a build identity.
 - **In-run control arm.** A second, independent build of the baseline is measured as
   a third interleaved arm. If baseline-versus-control itself breaches a cost guard, the
   machine was noisier than its calibration and the cost result is `unresolved` instead of
@@ -1369,15 +1420,31 @@ guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
 - **Why an arithmetic mean over seeds** in the companion: users pay the expected compile
   time over the seed distribution, and a geometric mean would underweight slow seeds.
 - **Noise calibration (A/A).** Before any candidate is selected, build the baseline
-  snapshot **twice** and collect 30 timing rounds and 10 memory processes per case and
-  build. Draw 1,000 resampled A/A comparisons (10 rounds per side, without replacement).
+  snapshot **twice** and interleave their calibration measurements on the controlled
+  runner. Calibrate each panel using exactly its decision estimator, seed set, weights
+  and sample counts:
+
+  | Panel | Collected per case and baseline build | Samples per arm in a resampled comparison | Samples per arm for the doubled-round rerun |
+  | --- | --- | --- | --- |
+  | Fixed-seed timing and preset construction | 30 rounds, retaining each round's timed calls | 10 rounds; median of round medians | 20 rounds |
+  | Multi-seed companion | 30 rounds **per seed**, for every seed 0–19 | 3 rounds per seed; median of round medians, then arithmetic mean over the 20 seeds | 6 rounds per seed, same seed set |
+  | Memory | 10 fresh processes | 5 processes; median peak RSS | 10 fresh processes |
+
+  Draw 1,000 bootstrap A/A comparisons **with replacement** for each panel and each
+  sample-count regime. Resample complete round/process records, retaining inner timed
+  calls; preserve recorded session blocks across cases when estimating a panel's noise.
+  In particular, never sample all 10 memory records without replacement: that would
+  leave the median constant and fail to estimate the variability of a five-process
+  decision. Rerun thresholds are separately calibrated before candidate evaluation.
   `noise_panel` is the 95th percentile of `|ln_panel|`, floored at `ln(1.01)`; `calibrate`
   refuses to freeze above `ln(1.05)`. `floor_c` is the 95th percentile of the absolute
-  per-case difference; the memory panel gets `noise_mem` and its floors the same way. The
-  resamples reuse one session's rounds and see build-to-build variation only once, which
-  is why the in-run control arm exists. The double build also tests that two builds of one
-  snapshot produce identical quality observations. A calibration expires after 30 days or
-  on any change of machine identity.
+  per-case difference in the same resamples; the memory panel gets `noise_mem` and its
+  floors using its five- or ten-process estimator. Store the estimator, sample counts,
+  seed set, weights, RNG seed and raw-sample hashes with each calibration. These
+  resamples see build-to-build variation only once, which is why the in-run control arm
+  exists. The double build also tests identical quality observations. A calibration
+  expires after 30 days or on any change of machine identity; only calibration records,
+  not individual cost measurements, are reusable across new comparisons (9.3).
 - **Guards.** One `ln_panel` guard and the per-case caps for each timing panel; family
   timing summaries are reported, not guarded (4.9). The multi-seed companion and the
   preset-construction panel are separate panels under the same guards whenever 3.6
@@ -1388,7 +1455,9 @@ guard         : ln_panel <= noise_panel   and no per-case cap breach (4.4)
   family weights (selected case weights renormalized inside each family). All cost
   comparisons use the baseline. Setup RSS is recorded so the harness's own
   footprint is visible.
-- **Noisy breach.** One predeclared re-measurement with doubled rounds. Breached again →
+- **Noisy breach.** One predeclared re-measurement of the affected panel, with fresh
+  interleaved measurements of all three arms and doubled rounds/processes as tabulated
+  above. Use its pre-calibrated rerun thresholds; never pool old and new arms. Breached again →
   established → `CONSTRAINT_VIOLATION`. Passing → recorded as `passed_on_rerun`. If it
   cannot be completed or calibration is stale → `unresolved`. Never rerun until favorable.
 
@@ -1484,11 +1553,16 @@ cases and seeds for both factors; it is never an objective of the loop.
   established on small circuits (C1–C5) and on Clifford variants compiled through the same
   code paths (C7), with the stages each check covers recorded explicitly (5.9).
 - **Every check records** `verified`, `mismatch` or `unverified`, the oracle used, the
-  stages covered and any component it substituted. `unverified` is never a pass.
+  stages covered, the tested input domain, semantic-reference hash and any component it
+  substituted. `unverified` is never a pass.
 - **Contracts are explicit.** All-input unitary checks compile with
   `qubits_initially_zero=False` and `approximation_degree=1.0`. The default zero-state
-  contract is tested separately with state checks (C2). Selected-state tests are weaker
-  than all-input tests and are labeled as such.
+  contract is tested separately with state checks (C2 and C1-lite). Arbitrary states and
+  full operators are never compared against a scored output compiled with the zero-state
+  promise. Measurement checks compare observable classical outcomes and surviving
+  quantum states, not the unitary obtained by deleting measurements. Selected-state tests
+  are weaker than all-input tests and are labeled as such. High-level approximate
+  evolution uses the frozen product-formula reference of 3.7 in every semantic check.
 - **No finite suite proves correctness.** Each discovered bug becomes a permanent
   regression fixture.
 
@@ -1549,23 +1623,46 @@ lists "rotations removed" for QFT as a diagnostic.
 isolation becomes relative under coherent control. A few fixtures therefore embed a
 compiled block as a controlled operation and compare again.
 
-**C1-lite (`confirm-profile`, 3.7).** The same oracle applied to *scored* outputs
-instead of fixtures: every scored output of the confirm profile whose active physical qubits
-number at most 25 (all small-band inputs and `ripple_adder_10`; at the baseline these
-outputs use 5 to 25 physical qubits) is compared with its input at every level on the
-first 10 seeds of the block — the seed count C7 uses, since the stage-coverage rule needs
-a `verified` record per circuit/target, not per seed. Operators are compared where the
-active width is at most 10; above that the verifier evolves |0…0⟩ and frozen random
-product states through both circuits — eight states up to 16 active qubits, two above —
-and requires equal states up to global phase at C4's `1e-8`, with the layout and final
-permutation applied as in C2, final measurements stripped, and the input's other qubits
-held at |0⟩ under the `qubits_initially_zero` contract. The check records `covers = all
-stages` and no substituted component, so under 5.9 these outputs are verified for every
-stage at levels 2–3. Cost: about 30 CPU-minutes per revision and block, measured with
-Aer's single-threaded statevector method at the baseline — the 23-qubit `ripple_adder_10`
-output costs 9 s per state, the 16-qubit `qaoa_complete_n16` output (11,800 gates)
-0.7 s, and most of the other outputs milliseconds; the full block would cost hours, which is why
-the seed count is capped.
+**C1-lite (`confirm-profile`, 3.7).** Check the semantics promised by the *scored*
+compilation: `qubits_initially_zero=True`, including all logical inputs and added
+ancillas. Every eligible scored output is checked at its scored level on the first
+10 seeds of the block — the seed count C7 uses, since stage coverage needs a `verified`
+record per circuit/target, not per seed. Eligibility is at most 25 physical wires in the
+union needed to simulate the output and its laid-out reference, including logical input
+and final positions; remove only wires idle in both. The baseline probe suggests the
+small-band inputs and `ripple_adder_10` qualify, but this union and the corrected oracle
+must be confirmed during qualification. Never drop an active logical or ancilla wire
+merely to fit the limit; exceeding it records `unverified` coverage.
+
+- **Unmeasured circuits:** evolve the all-zeros state through the scored output and its
+  semantic reference, apply the layout and final permutation as in C2, and require equal
+  full states up to global phase at `1e-8`, including ancillas under their declared
+  contract. Trotter inputs use the frozen product-formula circuit, not the mathematical
+  exponential of their high-level gates. No dense all-input operator or random product
+  state is required for a zero-initialized scored output, even below 10 qubits.
+- **Terminally measured circuits:** simulate from all zeros and compare the exact joint
+  classical distribution (`TVD < 1e-8`) using the exported qubit-to-classical-bit maps.
+  Also compare the conditional residual states on unmeasured logical wires and ancillas
+  where the circuit exposes them, after applying the final layout. Compare branches with
+  their probabilities, allowing an independent global phase per measured outcome;
+  require `sum_x ||p_x rho_x - q_x sigma_x||_1 / 2 < 1e-8` for the joint
+  classical/remaining-quantum state. For pure conditional branches this is computed from
+  branch statevectors without allocating full density matrices.
+  A statevector simulation of the prefix is only an intermediate for this measurement
+  calculation, never a requirement that the pre-measurement states agree. Unsupported
+  measurement patterns are `unverified`, not silently stripped or treated as unitary.
+- **Stronger checks:** C1's all-input fixtures remain separate compilations with
+  `qubits_initially_zero=False`. Any future stronger companion for a scored fixture must
+  likewise be declared separately, with its own options, observation ID and input domain;
+  it cannot relabel a zero-input check as all-input evidence.
+
+The record has `covers = all stages`, `input_domain = all_zero`, the semantic-reference
+hash and no substituted compilation component. It verifies those stages for the scored
+contract, not arbitrary inputs. Stage-coverage reports retain this distinction. The
+former 30 CPU-minute estimate used a different oracle and must be remeasured before
+freezing; retain it only as a planning allowance. Prior single-state timings (9 s for
+the 23-qubit `ripple_adder_10` output, 0.7 s for the 16-qubit `qaoa_complete_n16` output)
+are indicative, not qualification of the corrected measurement checks.
 
 ### 5.4. C2 — layout, ancillas, measurements and observables
 
@@ -1665,7 +1762,7 @@ p2v[init[v]] = v   for every v, ancillas included        # which virtual qubit s
 for each operation o of R, in order:
     vs = p2v applied to o's physical qubits;  ws = vs plus o's classical bits
     if one operation of L' is at the head of queue[w] for every w in ws, and it equals o
-       (same name, parameters, virtual qubit order vs, classical bits):    pop it from those queues
+       (same name, parameters, semantic payload, virtual qubit order vs, classical bits): pop it from those queues
     elif o is swap(a, b):                                                  exchange p2v[a] and p2v[b]
     else:                                                                  stop: not verified
 
@@ -1777,8 +1874,9 @@ never substitutes for correctness.
 ### 5.9. The stage-coverage rule
 
 **Automatic acceptance requires, for every scored circuit/target, a `verified` check whose
-stage coverage contains every stage the candidate changes.** A prefix check does not cover
-a later stage.
+stage coverage contains every stage the candidate changes and whose declared semantic
+contract is applicable to that case.** A prefix check does not cover a later stage;
+zero-input evidence is never reported as all-input equivalence.
 
 - **Changed stages** are the union of (a) a conservative, level-aware map from changed
   source paths to the pipeline stages where that code runs, applied to the file-level diff
@@ -1802,9 +1900,10 @@ a later stage.
   candidate that changes it, or two-qubit synthesis, or infrastructure, reaches at most
   `INCONCLUSIVE` and goes to review (8.6); it is never converted into a `PASS`. At levels
   0–1 the complete-pipeline C7 covers every stage for Clifford variants. In
-  `confirm-profile`, C1-lite (5.3) verifies every stage on the 18 small scored input
-  groups at all levels, so the review of an optimization-stage candidate has exact
-  evidence on half the scored panel; the medium and large cases keep the limit above. Also
+  `confirm-profile`, C1-lite (5.3) checks every stage under the scored zero-input contract
+  on the eligible small outputs at their scored levels. The probe suggests 18 groups;
+  qualification confirms the corrected oracle's coverage. This gives an optimization-stage
+  review exact evidence under that contract; larger cases keep the limit above. Also
   explain any case that verified at the baseline and does not under the candidate.
 
 ### 5.10. Canaries and the determinism audit
@@ -2125,7 +2224,7 @@ evaluated once, on the comparison block.
 
 | # | Constraint | Kind | Reference |
 | --- | --- | --- | --- |
-| CA1 | All required correctness checks pass on every revision — C0, C6 and C1-lite on every scored output, C7 on the 100-qubit circuits — and stage coverage is satisfied (5.9) | correctness | — |
+| CA1 | All required correctness checks pass on every revision — C0 and C6 on every scored output, C1-lite on eligible outputs for the first 10 seeds under their declared contract, C7 on the three 100-qubit variant fixtures — and stage coverage is satisfied (5.9) | correctness | — |
 | CA2 | Against the baseline: `ln(D2_score) + 2·SE < ln(0.99)` | improvement | Baseline |
 | CA3 | Breadth: at least 4 of the 8 families satisfy `ln(D2_family_score) + 2·SE_family < 0`, and removing any one family and renormalizing leaves `D2_score < 1` | improvement | Baseline |
 | CA4 | Guards against the baseline: every family and level summary has `ln(score) <= 3·SE` for `D2` and `N2`; so does overall `N2`; no positive case ratio above 1.05; per-case standard-error guards (`ln(case_ratio) <= 3·SE_case` and ratio at most 1.05, both metrics), deterministic guards, zero-baseline guards and the all-to-all control show no increase; canaries hold; band, topology and basis summaries are reported | guard | Baseline |
@@ -2240,8 +2339,10 @@ the affected cases) and the outcome, `reviewed_accept` or `reviewed_reject`.
    records which later measurements were not attempted.
 5. **Cost**, only for candidates whose improvement test passed and that have no `failed`
    record: timing panel with its control arm, companion and preset panel if required,
-   memory (confirm profile). Controlled runner, exclusive, interleaved. A noisy cost breach gets
-   the one re-measurement of 4.8.
+   memory (confirm profile). Start a fresh cost session and remeasure baseline, control
+   and evolved arms on the controlled runner, exclusively and interleaved. Quality and
+   calibration cache hits never supply timing or memory samples. A noisy cost breach gets
+   the one complete-panel re-measurement of 4.8 with its calibrated doubled sample counts.
 6. **Record and report.** Append the decision to the results root's count for this
    manifest, whatever the verdict; store unsuccessful attempts as well as passes. Mark
    every constraint passed, passed on rerun, failed, unresolved or not evaluated. No
@@ -2252,22 +2353,37 @@ the affected cases) and the outcome, `reviewed_accept` or `reviewed_reject`.
 
 `run.json` holds: run ID; profile, manifest and policy hashes; baseline and evolved
 identities with their archived snapshots (so either can be rebuilt); references to the
-calibration records in use; and the decision and any review. The per-manifest decision
-count lives in the results root (6.3). All files are written atomically; an interrupted
-run resumes from saved observations and never accepts partial results.
+calibration records in use; cost-session IDs, arm IDs and completion status; and the
+decision and any review. The per-manifest decision count lives in the results root (6.3).
+All files are written atomically; an interrupted
+run resumes from saved observations and never accepts partial results. Complete cost
+panels may be retained within that run; an interrupted panel restarts all its arms in a
+fresh session with a currently valid calibration, rather than mixing measurements taken
+before and after the interruption.
 
 ### 9.3. Caching
 
-Cache entries are content-addressed by: build identity (which includes OS and
+Quality cache entries are content-addressed by: build identity (which includes OS and
 architecture), platform identity (CPU model), harness and protocol versions, the
-**per-case definition hash** (circuit, target, options — so adding a case does not
-invalidate the others), the hash of the policy's *measurement protocol* (rounds,
+**per-case definition hash** (circuit, semantic reference and input domain, target,
+options — so adding a case does not invalidate the others), the hash of the policy's *measurement protocol* (rounds,
 warm-ups, seed counts), worker environment, seed-block ID and measurement mode. Decision
 thresholds are deliberately not part of the key: fixing one re-evaluates saved
-observations without recompiling (2.1). Reuse only exact matches. Timing and memory
-entries additionally require the same machine identity and a valid, unexpired noise
-calibration; stale cost data is remeasured. A failed determinism audit invalidates a
-revision's quality cache.
+observations without recompiling (2.1). Reuse only exact matches. A failed determinism
+audit invalidates a revision's quality cache.
+
+**Cost measurements are archived comparison evidence, not reusable per-revision cache
+entries.** A new `compare` always collects fresh interleaved baseline, control and evolved
+measurements. Store each complete panel as a bundle identifying the run, session, all
+three arms and builds, case definitions, estimator, normal/rerun sample counts, machine,
+timestamps and calibration ID. Distinct arm IDs keep the independent baseline builds'
+samples separate even if their build identities or artifact hashes coincide. Never join
+an old baseline or control arm to a new candidate, even on the same machine with an
+unexpired calibration. Within the same run, only complete bundles may survive resumption
+(9.2); `evaluate` and `report` can replay archived complete bundles using the calibration
+valid when they were measured. Calibration records alone are reusable across comparisons
+under their matching keys and expiry rules. A historical report remains historical
+evidence, not fresh cost qualification for a new comparison.
 
 ## 10. Work breakdown
 
@@ -2279,7 +2395,7 @@ Sizes are relative (S, M, L). Each milestone ends with a demonstrable exit crite
 | --- | --- | --- |
 | M0-1 | Repository skeleton, packaging of `qtb`, `qtb_worker`, `qtb_verifier`; harness CI | S |
 | M0-2 | JSON Schemas and versioning rules: manifest, policy, job/result protocol, observation, constraint record, decision | M |
-| M0-3 | Canonical formats (both constraint forms, symbolic exports, control-flow subset), hashing, pure-Python `D2`/`N2` and legality with reference examples | M |
+| M0-3 | Canonical formats (typed operation payloads, input expression trees and symbolic exports, both constraint forms, control-flow subset, semantic references), hashing, pure-Python `D2`/`N2` and legality with reference examples | M |
 | M0-4 | Pinned verifier environment and the canonical-data importer | M |
 | M0-5 | Port the feasibility prototypes into `tools/probes/` and tests: metric extractor, full-width recipe, routing replay, layout-semantics checks, the confirm-profile probe and panel generator (`design/probes/`) | S |
 
@@ -2315,8 +2431,8 @@ the cache; a test proves no process imports two Qiskits. Smoke runs issue no dec
 | M2-6 | Stage-coverage engine: snapshot diff, level-aware path map, change-scope file, substituted components | M |
 | M2-7 | Scorer: ratios, scores, `SE`, guards, caps, deterministic and zero handling, marginal summaries; evaluation from saved observations only | M |
 | M2-8 | Constraint records, required-ID sets, verdict procedure, the `compare` flow | M |
-| M2-9 | Run state, the per-manifest decision count in the results root, resumption | S |
-| M2-10 | Controlled-runner definition and quiet-machine checks; timing modes, interleaving with the control arm, A/A calibration and its reuse, noise floors, companion and preset panels, `diagnostics` mode | L |
+| M2-9 | Run state, the per-manifest decision count in the results root, quality resumption and complete cost-panel bundles with session/arm IDs | S |
+| M2-10 | Controlled-runner definition and quiet-machine checks; timing modes, fresh interleaved three-arm sessions, estimator-specific A/A calibration for normal and rerun counts, noise floors, companion and preset panels, `diagnostics` mode | L |
 | M2-11 | Sign-flip false-rejection calibration on the calibration blocks | M |
 | M2-12 | Canaries; determinism audit | S |
 | M2-13 | Upstream-test runner (baseline tests on the evolved build), the reshuffled-baseline derivation of the output-pinned list, and the changed-test report | M |
@@ -2335,12 +2451,12 @@ first `PASS`.
 
 | Task | Work | Size |
 | --- | --- | --- |
-| M3-1 | Curate the confirm fixtures from the in-tree suite: the `revlib_*`, `qft16_cancel` and `dtc_n100` files; the `qft.py`, `random_circuit_hex.py`, `ripple_adder.py`, `quantum_volume.py` and `utils.py` constructors at the widths of 3.7, with the QAOA parameters bound; provenance grade, upstream source and license per fixture; the `hwb12`/RevLib provenance question settled | M |
+| M3-1 | Curate the confirm fixtures from the in-tree suite: the `revlib_*`, `qft16_cancel` and `dtc_n100` files; the `qft.py`, `random_circuit_hex.py`, `ripple_adder.py`, `quantum_volume.py` and `utils.py` constructors at the widths of 3.7, with the QAOA parameters bound; preserve typed high-level operations and freeze separate product-formula references for Trotter fixtures; provenance grade, upstream source and license per fixture; the `hwb12`/RevLib provenance question settled | M |
 | M3-2 | Freeze the eleven additional targets (`mumbai_27`, `mumbai_27_loose`, `melbourne_14`, `melbourne_14_u`, `rochester_53`, `rochester_53_u`, `tokyo_20`, `sycamore_54`, `grid_5x5_u`, `grid_7x7_u`, `a2a_clifford_rz_16`) as canonical data, with the size band computed from active qubits and the topology class recorded | S |
 | M3-3 | Manifest generator for the confirm workload: family → level → band → topology → basis → group weight tree, coverage validation against the standard of 3.7 with declared gaps, exclusions, role assignment from baseline data (deterministic and zero-baseline roles confirmed on the comparison block and the two calibration blocks — the path/ring inputs, `qft16_cancel`, the QUEKO defaults, the all-to-all control) | M |
 | M3-4 | Family-balanced scorer, family and level summaries as guards, band/topology/basis summaries as reports, breadth and leave-one-family-out checks, the leave-iterations-out score; the CA1–CA6 records and verdict | M |
 | M3-5 | Report-only paired cluster bootstrap with family strata and the small-sample rescaling | S |
-| M3-6 | C1-lite (5.3): exact equivalence for scored outputs on at most 25 active physical qubits, all levels, first 10 seeds; its stage-coverage record | M |
+| M3-6 | C1-lite (5.3): zero-input state/measurement semantics for eligible scored outputs, frozen Trotter references, scored levels and first 10 seeds; contract-aware stage-coverage records and remeasured coverage/cost | M |
 | M3-7 | Confirm cost panels: the 31-case `timing_e2e` panel, the eight-input companion, the nine-case memory panel and their A/A calibration | M |
 | M3-8 | The confirm-profile known-outcome validation (section 11) and one complete confirm comparison on real folders | M |
 
@@ -2384,6 +2500,15 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
    Positive controls accompany them: correct compiles of SWAP-containing circuits at
    levels 2–3 (elided permutation), of circuits with measurements, and with a non-involutive
    routing permutation must all verify.
+   C1-lite must also accept the zero-initialized `multiplier_h18_n16` on Mumbai at
+   level 0, seed 0; arbitrary product states are outside that compile's contract. A
+   separate `qubits_initially_zero=False` compile verifies the stronger contract.
+   `h; rz(0.4); measure` and its valid level-2 optimization must agree as measurement
+   processes even though their pre-measurement states differ. A C2 fixture with unequal
+   measurement probabilities must reject a corrupted classical-bit map. A small
+   `trotter_circuit(4)` must verify against its frozen Lie–Trotter reference; perturbing
+   a rotation so it changes the zero-input state must fail. The exact Hamiltonian
+   exponential must not be substituted as that reference.
 3. **Self-grading is impossible.** Against a patched Qiskit whose `depth()` halves its
    answer and whose `Operator.equiv` always returns true, scores and oracle results are
    unchanged.
@@ -2410,12 +2535,27 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
    tree reproduces 1/96, 1/128 and 1/384 for the `qft_n100`, `qv_n50_d50` and
    `mcx_kg24_n16` level-2 cases of 3.7; the bootstrap and the sign-flip calibration
    reproduce under their recorded RNG seeds; on synthetic null data the measured
-   false-rejection rate matches its known value.
+   false-rejection rate matches its known value. Cost-calibration checks exercise the
+   actual estimators separately: memory resamples five of ten process records **with
+   replacement** and varies their medians; companion resamples three rounds per seed and
+   then averages seed medians; fixed-seed timing uses ten round medians. The calibrated
+   rerun estimators use ten, six and twenty samples respectively. Recorded RNG seeds
+   reproduce all thresholds, and synthetic null data tests their sampling behavior.
 7. **Isolation and caching.** No process imports two Qiskits; a source edit invalidates
    cached builds; a changed option misses the cache; adding a case leaves other entries
-   valid.
+   valid. Changing only a Pauli Hamiltonian, synthesis setting, annotated modifier or
+   MCMT base gate changes the canonical hash and survives a round trip with its operation
+   type intact. Symbolic input expression trees and delay units round-trip too. Every
+   selected high-level fixture reconstructs through the adapter before the profile can
+   qualify. A semantic-reference edit invalidates its case's oracle observations.
+   A new comparison never reuses a cost arm: simulate an old 100 ms baseline, a current
+   80 ms baseline/control and a 92 ms candidate; the current 1.15 ratio must breach, not
+   become 0.92 by mixing sessions. Identical build identities do not coalesce baseline
+   and control samples.
 8. **Replay and resumption.** Reports regenerate from saved observations; an interrupted
-   run resumes without accepting partial results.
+   run resumes without accepting partial results. An interrupted cost panel restarts all
+   arms; only complete within-run bundles can be reused. Historical report replay retains
+   the original calibration and measurement timestamps.
 9. **End to end.** Real Qiskit folders run on a controlled runner, and the evidence behind
    every decision field is inspected by a person.
 
@@ -2453,12 +2593,14 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
 | Upstream tests | Baseline's Python tests against the evolved build are binding, minus a frozen output-pinned list that is report-only; Rust inline tests are the evolved snapshot's own |
 | Routing guard circuits (3.4) | Members of `confirm-profile` only, with the levels and roles of its tables (`hwb12` at level 2 only); primary `cz` target unless fixture-fixed; QUEKO in both default and SABRE-method configurations; references the baseline |
 | Confirm practical effect; breadth | 1%; at least 4 of 8 families and leave-one-family-out below 1 |
-| `confirm-profile` specifics | Weight tree family → level → band → topology → basis → group over the one 38-group scored panel; `+2·SE < ln(0.99)`; family and level summaries guarded, band/topology/basis summaries reported; bootstrap report-only with family strata; leave-iterations-out score reported; C1-lite on outputs with at most 25 active physical qubits, first 10 seeds, operators up to 10 qubits, then the all-zeros state plus 8 (up to 16 qubits) or 2 frozen random product states; `su2_circular_n89` level 3 and `hwb12` level 2 as 10- and 20-seed guards; size band from active qubits |
+| `confirm-profile` specifics | Weight tree family → level → band → topology → basis → group over the one 38-group scored panel; `+2·SE < ln(0.99)`; family and level summaries guarded, band/topology/basis summaries reported; bootstrap report-only with family strata; leave-iterations-out score reported; C1-lite on the first 10 seeds where the output/reference union fits 25 physical wires, testing zero-input states or measurement semantics against the declared reference; `su2_circular_n89` level 3 and `hwb12` level 2 as 10- and 20-seed guards; size band from active qubits |
+| Semantic references | Typed high-level input operations preserved; Trotter fixtures have separate frozen product-formula references; every oracle records its input domain and reference hash |
 | Bootstrap | 10,000 replicates, 95th percentile, frozen RNG seed, at least 3 groups per stratum, `sqrt(n/(n−1))` rescaling |
-| Numerical tolerances | Operators `rtol 1e-7`, `atol 1e-8`; states, expectations and TVD `1e-8` |
-| Timing protocol | 10 rounds; 1 warm-up; at least 3 timed calls and 1 s per round; control arm; companion seeds 0–19 × 3 rounds; T1–T2 with the level omitted |
+| Numerical tolerances | Operators `rtol 1e-7`, `atol 1e-8`; states, expectations, TVD and joint classical/remaining-quantum trace distance `1e-8` |
+| Timing protocol | Fresh interleaved baseline/control/evolved arms for every new comparison; 10 rounds; 1 warm-up; at least 3 timed calls and 1 s per round; companion seeds 0–19 × 3 rounds; T1–T2 with the level omitted |
 | Memory protocol | 5 fresh processes per case, median |
-| Cost calibration | 30 timing rounds and 10 memory processes × 2 baseline builds; 1,000 resamples; noise floor 1%, freeze refused above 5%; expiry 30 days or a machine change; reusable across runs |
+| Cost calibration | Two baseline builds; collect 30 rounds per fixed-seed case, 30 per companion seed, and 10 memory processes; 1,000 bootstrap resamples with replacement using decision counts 10 / 3 per seed / 5 and rerun counts 20 / 6 per seed / 10; noise floor 1%, freeze refused above 5%; expiry 30 days or a machine change; calibration records reusable across runs |
+| Cost retention and rerun | Session/arm-scoped complete panel bundles; archived observations only replayed or resumed within their original run; one fresh three-arm doubled-count rerun of a breached panel, with separately calibrated thresholds |
 | False-rejection calibration | Two calibration blocks paired into one null comparison; 10,000 sign flips; target family-wise rate at most 10% at the `3·SE` guard multiplier |
 | Multiplicity remedy | None beyond the `3·SE` guard multiplier: quality guards have no rerun; a profile whose calibrated rate exceeds 10% demotes summaries to report-only before freezing |
 | Determinism audit | 5% of observations, at least 10 per revision, half with a different hash seed |
@@ -2485,6 +2627,8 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
                  "commit": "0131cbbcc"},
   "seeds_per_block": 100,
   "circuit": {"file": "circuits/qft_n100.ops.jsonl.gz", "sha256": "<hash>"},
+  "input_domain": "all_zero",
+  "semantic_reference": {"kind": "input"},
   "constraint_form": "target",
   "target": {"file": "targets/heavy_hex_d9_cz.target.json", "sha256": "<hash>",
              "native_2q_names": ["cz"]},
@@ -2513,12 +2657,21 @@ Before a profile may issue `PASS`, the harness must produce known outcomes:
 `memory`; a loose-constraint case replaces `target` with `basis_gates` and
 `coupling_map`.
 
+For a Trotter fixture, `semantic_reference` instead contains
+`{"kind": "frozen_circuit", "contract": "product_formula", "file": "references/trotter_chain_n16.ops.jsonl.gz", "sha256": "<hash>"}`.
+The verifier resolves `kind: input` to the input hash; checks on a separate fixture or
+stronger compile record that fixture's actual reference, input domain and options.
+
 **Observation** (one row per case × revision × seed, or per timing/memory sample set):
-case and group IDs; circuit and target hashes; revision and build identity;
+case and group IDs; circuit, semantic-reference and target hashes; input domain;
+revision and build identity;
 options and worker environment; seed and seed-block ID; weight; measurement mode; raw
 samples; canonical output hash; `D2`; `N2`; applicable memory or scheduling metrics;
-correctness status with oracle, stage boundary and substituted components;
-pipeline-fingerprint hash; errors. Inapplicable metrics are absent, not zero.
+correctness status with oracle, tested input domain, reference contract, stage boundary
+and substituted components; pipeline-fingerprint hash; errors. Cost observations also
+record run/session/arm IDs, timestamps, estimator and normal/rerun regime, machine and
+calibration ID; their complete panel bundle identifies all three arms. Inapplicable
+metrics are absent, not zero.
 
 **Decision** (`decision.json`):
 
